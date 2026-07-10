@@ -299,7 +299,7 @@
     <p class="sub">トーク内容から話題カードをつくります</p>
   </header>
   <div class="screen-body">
-    <textarea id="paste-area" placeholder="LINEのトーク内容をそのまま貼り付けてください"></textarea>
+    <textarea id="paste-area" placeholder="LINEのトーク内容をそのまま貼り付けてください&#10;（話題を1行ずつ並べたテキストでもOK）"></textarea>
     <div id="paste-error"></div>
   </div>
   <footer class="screen-footer">
@@ -439,8 +439,39 @@
     return s;
   }
 
+  // 入力がLINEのトーク形式かどうかを判別（タイムスタンプ付きの行が1行でもあればLINE形式）
+  function looksLikeLineChat(lines) {
+    for (var i = 0; i < lines.length; i++) {
+      var l = lines[i].trim();
+      if (TAB_RE.test(l) || SPACE_RE.test(l) || DATE_RE.test(l)) return true;
+    }
+    return false;
+  }
+
+  // プレーンテキスト（話題のリスト）用の抽出：1行 = 1話題として緩やかに処理
+  function extractPlainTopics(lines) {
+    var results = [];
+    var seen = {};
+    for (var i = 0; i < lines.length; i++) {
+      var line = lines[i].replace(/\u200B/g, "").trim();
+      if (!line) continue;                          // 空行
+      var cleaned = cleanLine(line);                // URL・絵文字・行頭記号の除去
+      if (!cleaned) continue;
+      if (seen[cleaned]) continue;                  // 完全一致の重複統合
+      seen[cleaned] = true;
+      results.push({ text: cleaned, sender: "" }); // 提出者情報なし
+    }
+    return results;
+  }
+
   function extractTopics(text) {
     var lines = text.split(/\r?\n/);
+
+    // LINE形式でなければプレーンテキストとして処理
+    if (!looksLikeLineChat(lines)) {
+      return extractPlainTopics(lines);
+    }
+
     var results = [];
     var seen = {};
     var currentSender = "";
@@ -536,12 +567,13 @@
         if (e.key === "Enter") { e.preventDefault(); textDiv.blur(); }
       });
 
-      var senderDiv = document.createElement("div");
-      senderDiv.className = "sender";
-      senderDiv.textContent = "提出者：" + t.sender;
-
       bodyDiv.appendChild(textDiv);
-      bodyDiv.appendChild(senderDiv);
+      if (t.sender) {
+        var senderDiv = document.createElement("div");
+        senderDiv.className = "sender";
+        senderDiv.textContent = "提出者：" + t.sender;
+        bodyDiv.appendChild(senderDiv);
+      }
 
       var delBtn = document.createElement("button");
       delBtn.className = "del";
@@ -641,7 +673,8 @@
       $("kuji-topic").textContent = ""; // 裏に戻ってから内容を消す
       isFlipping = false;
       $("tap-hint").textContent = "カードをタップしてめくる";
-    });
+    }
+);
   }
 
   // transitionend + 保険タイマーでアニメ完了を検知
@@ -665,7 +698,7 @@
     var raw = $("paste-area").value;
     var err = $("paste-error");
     if (!raw.trim()) {
-      err.textContent = "トーク内容を貼り付けてください";
+      err.textContent = "テキストを貼り付けてください";
       return;
     }
     err.textContent = "";
@@ -676,9 +709,8 @@
 
   // 画面2：手動追加
   $("btn-add").addEventListener("click", function () {
-    topics.push({ text: "", sender: "手動追加" });
+    topics.push({ text: "", sender: "" });
     renderEditList();
-    // 追加したカードにフォーカス
     var texts = document.querySelectorAll("#card-list .text");
     if (texts.length > 0) texts[texts.length - 1].focus();
   });
