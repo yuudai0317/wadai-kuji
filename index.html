@@ -1,0 +1,683 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>話題くじ引き</title>
+<style>
+  :root {
+    --cream: #faf6f0;
+    --white: #ffffff;
+    --coral: #c94a2a;
+    --brown: #3d2b1f;
+    --gray: #a89e94;
+    --shadow: 0 6px 24px rgba(61, 43, 31, 0.10);
+    --serif: "Yu Mincho", "YuMincho", "Hiragino Mincho ProN", "HGS明朝E", serif;
+    --sans: "Hiragino Kaku Gothic ProN", "Yu Gothic", "YuGothic", "Meiryo", sans-serif;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; }
+  body {
+    background: var(--cream);
+    color: var(--brown);
+    font-family: var(--sans);
+    line-height: 1.6;
+    overscroll-behavior: none;
+  }
+  h1, h2, .kuji-topic, .finish-title { font-family: var(--serif); }
+
+  .screen {
+    display: none;
+    flex-direction: column;
+    height: 100dvh;
+    max-width: 640px;
+    margin: 0 auto;
+  }
+  .screen.active { display: flex; }
+
+  .screen-header {
+    padding: 20px 20px 8px;
+    text-align: center;
+    flex-shrink: 0;
+  }
+  .screen-header h1 { font-size: 1.35rem; letter-spacing: 0.12em; font-weight: 600; }
+  .screen-header p.sub { font-size: 0.8rem; color: var(--gray); margin-top: 4px; }
+
+  .screen-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px 20px;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .screen-footer {
+    flex-shrink: 0;
+    padding: 12px 20px calc(16px + env(safe-area-inset-bottom));
+    background: linear-gradient(to top, var(--cream) 70%, rgba(250, 246, 240, 0));
+  }
+
+  .btn {
+    display: block;
+    width: 100%;
+    border: none;
+    border-radius: 16px;
+    padding: 16px;
+    font-size: 1.05rem;
+    font-family: var(--sans);
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    cursor: pointer;
+    transition: transform 0.12s ease, opacity 0.12s ease;
+  }
+  .btn:active { transform: scale(0.97); }
+  .btn-primary { background: var(--coral); color: #fff; box-shadow: 0 4px 14px rgba(201, 74, 42, 0.30); }
+  .btn-secondary {
+    background: transparent;
+    color: var(--coral);
+    border: 1.5px dashed var(--coral);
+    font-weight: 600;
+    margin-bottom: 10px;
+  }
+  .btn-ghost {
+    background: transparent;
+    color: var(--gray);
+    font-size: 0.85rem;
+    font-weight: 500;
+    padding: 10px;
+    margin-top: 4px;
+  }
+
+  /* ── 画面1：貼り付け ── */
+  #screen-paste textarea {
+    width: 100%;
+    height: 100%;
+    min-height: 240px;
+    border: 1.5px solid #e6ddd2;
+    border-radius: 16px;
+    background: var(--white);
+    padding: 16px;
+    font-size: 16px; /* iOSズーム防止 */
+    font-family: var(--sans);
+    color: var(--brown);
+    resize: none;
+    box-shadow: var(--shadow);
+  }
+  #screen-paste textarea:focus { outline: 2px solid var(--coral); border-color: transparent; }
+  #screen-paste textarea::placeholder { color: #c4b8ab; }
+  #paste-error {
+    color: var(--coral);
+    font-size: 0.85rem;
+    text-align: center;
+    margin-top: 8px;
+    min-height: 1.4em;
+  }
+
+  /* ── 画面2：確認・編集 ── */
+  .count-badge {
+    display: inline-block;
+    background: var(--white);
+    border-radius: 999px;
+    padding: 6px 18px;
+    box-shadow: var(--shadow);
+    font-size: 0.9rem;
+    margin-top: 6px;
+  }
+  .count-badge strong { color: var(--coral); font-size: 1.15rem; margin: 0 2px; }
+
+  .topic-card {
+    background: var(--white);
+    border-radius: 16px;
+    box-shadow: var(--shadow);
+    padding: 14px 14px 10px;
+    margin-bottom: 12px;
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+  }
+  .topic-card .body { flex: 1; min-width: 0; }
+  .topic-card .text {
+    font-size: 0.98rem;
+    outline: none;
+    border-radius: 8px;
+    padding: 4px 6px;
+    min-height: 1.6em;
+    word-break: break-word;
+    white-space: pre-wrap;
+  }
+  .topic-card .text:focus { background: #fdf3ee; box-shadow: inset 0 0 0 1.5px var(--coral); }
+  .topic-card .text:empty::before { content: "話題を入力…"; color: #c4b8ab; }
+  .topic-card .sender {
+    font-size: 0.72rem;
+    color: var(--gray);
+    margin-top: 4px;
+    padding-left: 6px;
+  }
+  .topic-card .del {
+    flex-shrink: 0;
+    width: 34px;
+    height: 34px;
+    border: none;
+    border-radius: 50%;
+    background: #f3ece3;
+    color: #9c8d7e;
+    font-size: 1rem;
+    line-height: 1;
+    cursor: pointer;
+  }
+  .topic-card .del:active { background: var(--coral); color: #fff; }
+  #empty-note {
+    text-align: center;
+    color: var(--gray);
+    font-size: 0.88rem;
+    padding: 32px 12px;
+    display: none;
+  }
+
+  /* ── 画面3：くじ引き ── */
+  #screen-kuji .screen-body {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+  }
+  .remain {
+    font-size: 0.95rem;
+    letter-spacing: 0.1em;
+    color: var(--brown);
+    margin-bottom: 18px;
+  }
+  .remain strong { color: var(--coral); font-size: 1.3rem; font-family: var(--serif); margin: 0 3px; }
+
+  .kuji-stage {
+    width: min(78vw, 340px);
+    height: min(104vw, 452px);
+    perspective: 1200px;
+  }
+  .kuji-inner {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    transform-style: preserve-3d;
+    transition: transform 0.65s cubic-bezier(0.4, 0.1, 0.2, 1);
+  }
+  .kuji-stage.flipped .kuji-inner { transform: rotateY(180deg); }
+  .kuji-face {
+    position: absolute;
+    inset: 0;
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+    border-radius: 16px;
+    box-shadow: var(--shadow);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  /* 裏面：クリーム地＋幾何学模様 */
+  .kuji-back {
+    background-color: #fdf8f0;
+    background-image:
+      linear-gradient(45deg, rgba(201,74,42,0.055) 25%, transparent 25%, transparent 75%, rgba(201,74,42,0.055) 75%),
+      linear-gradient(-45deg, rgba(201,74,42,0.055) 25%, transparent 25%, transparent 75%, rgba(201,74,42,0.055) 75%);
+    background-size: 30px 30px;
+    border: 1px solid #efe6d8;
+    cursor: pointer;
+  }
+  .kuji-back .emblem {
+    width: 76px;
+    height: 76px;
+    border: 1.5px solid rgba(201,74,42,0.45);
+    transform: rotate(45deg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(253,248,240,0.9);
+  }
+  .kuji-back .emblem::before {
+    content: "";
+    width: 54px;
+    height: 54px;
+    border: 1px solid rgba(201,74,42,0.30);
+  }
+  /* 表面：話題 */
+  .kuji-front {
+    background: var(--white);
+    transform: rotateY(180deg);
+    padding: 28px 22px;
+    border: 1px solid #f0e9df;
+  }
+  .kuji-topic {
+    text-align: center;
+    font-weight: 600;
+    line-height: 1.75;
+    word-break: break-word;
+    font-size: 1.45rem; /* 基本サイズ（30文字以下） */
+  }
+  .kuji-topic.small { font-size: 1.12rem; }   /* 31〜60文字 */
+  .kuji-topic.xsmall { font-size: 0.92rem; }  /* 61文字以上 */
+
+  .tap-hint {
+    margin-top: 18px;
+    font-size: 0.82rem;
+    color: var(--gray);
+    letter-spacing: 0.1em;
+    min-height: 1.4em;
+    transition: opacity 0.3s;
+  }
+
+  /* 終了画面 */
+  #finish-view {
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+  }
+  .finish-title { font-size: 1.7rem; letter-spacing: 0.14em; margin-bottom: 10px; }
+  .finish-sub { color: var(--gray); font-size: 0.9rem; }
+  .finish-mark {
+    width: 64px; height: 64px;
+    border: 1.5px solid var(--coral);
+    transform: rotate(45deg);
+    margin-bottom: 28px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .finish-mark span { transform: rotate(-45deg); color: var(--coral); font-size: 1.5rem; font-family: var(--serif); }
+
+  @media (prefers-reduced-motion: reduce) {
+    .kuji-inner { transition-duration: 0.01s; }
+    .btn { transition: none; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ═══ 画面1：貼り付け ═══ -->
+<div class="screen active" id="screen-paste">
+  <header class="screen-header">
+    <h1>話題くじ引き</h1>
+    <p class="sub">トーク内容から話題カードをつくります</p>
+  </header>
+  <div class="screen-body">
+    <textarea id="paste-area" placeholder="LINEのトーク内容をそのまま貼り付けてください"></textarea>
+    <div id="paste-error"></div>
+  </div>
+  <footer class="screen-footer">
+    <button class="btn btn-primary" id="btn-parse">くじを作成</button>
+  </footer>
+</div>
+
+<!-- ═══ 画面2：確認・編集 ═══ -->
+<div class="screen" id="screen-edit">
+  <header class="screen-header">
+    <h1>話題の確認</h1>
+    <div class="count-badge">話題 <strong id="topic-count">0</strong> 件</div>
+  </header>
+  <div class="screen-body">
+    <div id="card-list"></div>
+    <p id="empty-note">話題が見つかりませんでした。<br>「話題を手動で追加」から入力できます。</p>
+  </div>
+  <footer class="screen-footer">
+    <button class="btn btn-secondary" id="btn-add">＋ 話題を手動で追加</button>
+    <button class="btn btn-primary" id="btn-start">くじ引きを開始</button>
+    <button class="btn btn-ghost" id="btn-back-paste">← 貼り付けに戻る</button>
+  </footer>
+</div>
+
+<!-- ═══ 画面3：くじ引き ═══ -->
+<div class="screen" id="screen-kuji">
+  <header class="screen-header">
+    <h1>くじ引き</h1>
+  </header>
+  <div class="screen-body">
+    <div id="draw-view" style="display:flex;flex-direction:column;align-items:center;">
+      <div class="remain">残り <strong id="remain-num">0</strong> / <span id="total-num">0</span></div>
+      <div class="kuji-stage" id="kuji-stage">
+        <div class="kuji-inner">
+          <div class="kuji-face kuji-back"><div class="emblem"></div></div>
+          <div class="kuji-face kuji-front"><p class="kuji-topic" id="kuji-topic"></p></div>
+        </div>
+      </div>
+      <p class="tap-hint" id="tap-hint">カードをタップしてめくる</p>
+    </div>
+    <div id="finish-view">
+      <div class="finish-mark"><span>了</span></div>
+      <p class="finish-title">おつかれさまでした</p>
+      <p class="finish-sub">すべての話題を引き終わりました</p>
+    </div>
+  </div>
+  <footer class="screen-footer">
+    <button class="btn btn-primary" id="btn-next" style="display:none;">次を引く</button>
+    <button class="btn btn-primary" id="btn-restart" style="display:none;">もう一度最初から</button>
+    <button class="btn btn-ghost" id="btn-back-edit">← 話題の編集に戻る</button>
+  </footer>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  /* ═══════════ 状態（すべてメモリ上で保持） ═══════════ */
+  var topics = [];        // { text: string, sender: string }
+  var deck = [];          // シャッフル済みの topics コピー
+  var drawIndex = 0;      // 次に引く位置
+  var isFlipping = false; // めくりアニメーション中フラグ
+  var revealed = false;   // 現在カードが表になっているか
+
+  /* ═══════════ 抽出ロジック ═══════════ */
+
+  // 除外：飲み物名のみの行
+  var DRINKS = [
+    "コーヒー","アイスコーヒー","ホットコーヒー","ブレンド","アメリカーノ","エスプレッソ",
+    "カフェラテ","ラテ","アイスラテ","ホットラテ","カフェオレ","カプチーノ","カフェモカ","モカ",
+    "紅茶","アイスティー","ホットティー","ミルクティー","レモンティー","チャイ",
+    "抹茶ラテ","抹茶","ほうじ茶","ほうじ茶ラテ","緑茶","ウーロン茶","烏龍茶","ジャスミン茶","麦茶","お茶",
+    "ジュース","オレンジジュース","アップルジュース","グレープフルーツジュース","トマトジュース",
+    "コーラ","サイダー","ジンジャーエール","ソーダ","レモネード","カルピス",
+    "水","お水","ミネラルウォーター","炭酸水","スムージー","ココア","ミルク","牛乳","豆乳",
+    "タピオカ","タピオカミルクティー","フラペチーノ",
+    "ビール","生ビール","ワイン","赤ワイン","白ワイン","日本酒","焼酎","ハイボール",
+    "レモンサワー","サワー","梅酒","カクテル","ノンアルコールビール"
+  ];
+
+  // 除外：挨拶・定型文
+  var GREETING_RES = [
+    /よろしく(お願い|おねがい)?(します|いたします|致します)?[!！~〜。]*$/,
+    /^宜しくお願い(します|いたします|致します)?/,
+    /^(参加|さんか)(します|できます|したいです|希望です?)[!！。]*$/,
+    /^不?参加です[。!！]*$/,
+    /^(ありがとう(ございます|ございました)?|有難うございます)[!！。]*$/,
+    /^(おはよう(ございます)?|こんにちは|こんばんは|はじめまして|初めまして)[!！。]*$/,
+    /^(お疲れ様|おつかれさま|お疲れさま)(です|でした)?[!!！。]*$/,
+    /^(了解|承知)(です|しました|いたしました)?[!！。]*$/,
+    /^楽しみ(です|にしています|にしてます)[!！。]*$/,
+    /^(はい|うん|OK|ok|オッケー|おけ)[!！。]*$/,
+    /^(すみません|すいません|ごめんなさい)[!！。]*$/
+  ];
+
+  // 除外：システム行・スタンプ表記など
+  var SYSTEM_RES = [
+    /^\[?(スタンプ|写真|画像|動画|ボイスメッセージ|アルバム|ノート|ファイル|位置情報|連絡先)\]?$/,
+    /^\[(Sticker|Photo|Video|Voice message|File)\]$/i,
+    /^(既読|未読)\s*\d*$/,
+    /(が退出しました|が参加しました|がグループに招待しました|を招待しました|グループを作成しました|メッセージの送信を取り消しました|通話時間|不在着信|☎)/
+  ];
+
+  // 日付行 例: 2025/07/01(火), 2025.7.1, 2025年7月1日(火)
+  var DATE_RE = /^\d{4}[\/\.年]\s?\d{1,2}[\/\.月]\s?\d{1,2}日?\s*([(（][月火水木金土日][)）])?$/;
+  // タブ区切りエクスポート形式: "19:23\t田中\tメッセージ"
+  var TAB_RE = /^(\d{1,2}:\d{2})\t([^\t]*)\t?(.*)$/;
+  // スペース区切り形式: "19:23 田中 メッセージ"
+  var SPACE_RE = /^(\d{1,2}:\d{2})\s+(\S{1,20})\s+(.+)$/;
+  // 絵文字
+  var EMOJI_RE = /[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}\u{FE00}-\u{FE0F}\u{200D}\u{1F1E6}-\u{1F1FF}]/gu;
+  // 行頭の番号・記号（1. ・ ① - ● など）
+  var LEAD_MARK_RE = /^[\s　]*(?:[0-9０-９]{1,3}\s*[.．、)）:：]|[①-⑳㉑-㉟]|[・･•●○◎▪▫■□◆◇★☆※»>]|[-–—ー=]{1,2}|\*{1,2})[\s　]*/;
+
+  function isDrinkOnly(line) {
+    // 「〜で」「〜をお願いします」「〜ください」などの注文語尾を落として判定
+    var s = line
+      .replace(/[!！。、\s　]/g, "")
+      .replace(/(でお願いします|をお願いします|お願いします|ください|下さい|で大丈夫です|でいいです|で$|希望です)$/g, "")
+      .replace(/^(私は|ぼくは|僕は|自分は|わたしは)/, "");
+    if (!s) return false;
+    if (DRINKS.indexOf(s) !== -1) return true;
+    // 「アイス◯◯」「ホット◯◯」の組み合わせ
+    var m = s.match(/^(アイス|ホット)(.+)$/);
+    if (m && DRINKS.indexOf(m[2]) !== -1) return true;
+    return false;
+  }
+
+  function cleanLine(raw) {
+    var s = raw;
+    s = s.replace(/https?:\/\/\S+/g, "");            // URL除去
+    s = s.replace(/\((絵文字|emoji)\)/gi, "");
+    s = s.replace(/\[(スタンプ|絵文字)\]/g, "");
+    s = s.replace(EMOJI_RE, "");                      // 絵文字除去
+    s = s.replace(LEAD_MARK_RE, "");                  // 行頭の番号・記号
+    s = s.replace(/[\s　]+$/g, "").replace(/^[\s　]+/g, "");
+    return s;
+  }
+
+  function extractTopics(text) {
+    var lines = text.split(/\r?\n/);
+    var results = [];
+    var seen = {};
+    var currentSender = "";
+
+    for (var i = 0; i < lines.length; i++) {
+      var line = lines[i].replace(/\u200B/g, "").trim();
+      if (!line) continue;                 // 空行
+      if (DATE_RE.test(line)) continue;    // 日付行
+      if (/^\d{1,2}:\d{2}$/.test(line)) continue; // 時刻のみの行
+
+      var body = line;
+      var m = line.match(TAB_RE);
+      if (m) {
+        if (m[2]) currentSender = m[2].trim();
+        body = (m[3] || "").trim();
+      } else {
+        var m2 = line.match(SPACE_RE);
+        if (m2) {
+          currentSender = m2[2].trim();
+          body = m2[3].trim();
+        }
+        // どちらにも一致しない行は、直前の送信者の続き（複数行メッセージ）として扱う
+      }
+      if (!body) continue;
+
+      // システム行の除外（クリーニング前に判定）
+      var skip = false;
+      for (var s = 0; s < SYSTEM_RES.length; s++) {
+        if (SYSTEM_RES[s].test(body)) { skip = true; break; }
+      }
+      if (skip) continue;
+
+      var cleaned = cleanLine(body);
+      if (!cleaned) continue;
+
+      // 挨拶文の除外
+      for (var g = 0; g < GREETING_RES.length; g++) {
+        if (GREETING_RES[g].test(cleaned)) { skip = true; break; }
+      }
+      if (skip) continue;
+
+      // 飲み物のみの行を除外
+      if (isDrinkOnly(cleaned)) continue;
+
+      // 重複統合（完全一致）
+      if (seen[cleaned]) continue;
+      seen[cleaned] = true;
+
+      results.push({ text: cleaned, sender: currentSender || "不明" });
+    }
+    return results;
+  }
+
+  /* ═══════════ Fisher-Yates シャッフル ═══════════ */
+  function shuffle(arr) {
+    var a = arr.slice();
+    for (var i = a.length - 1; i > 0; i--) {
+      var j = Math.floor(Math.random() * (i + 1));
+      var tmp = a[i]; a[i] = a[j]; a[j] = tmp;
+    }
+    return a;
+  }
+
+  /* ═══════════ 画面制御 ═══════════ */
+  var $ = function (id) { return document.getElementById(id); };
+  var screens = { paste: $("screen-paste"), edit: $("screen-edit"), kuji: $("screen-kuji") };
+
+  function showScreen(name) {
+    for (var k in screens) screens[k].classList.remove("active");
+    screens[name].classList.add("active");
+    window.scrollTo(0, 0);
+  }
+
+  /* ── 画面2：カード一覧の描画 ── */
+  function renderEditList() {
+    var list = $("card-list");
+    list.innerHTML = "";
+    topics.forEach(function (t, idx) {
+      var card = document.createElement("div");
+      card.className = "topic-card";
+
+      var bodyDiv = document.createElement("div");
+      bodyDiv.className = "body";
+
+      var textDiv = document.createElement("div");
+      textDiv.className = "text";
+      textDiv.contentEditable = "true";
+      textDiv.textContent = t.text;
+      textDiv.addEventListener("input", function () {
+        topics[idx].text = textDiv.textContent.trim();
+      });
+      textDiv.addEventListener("keydown", function (e) {
+        if (e.key === "Enter") { e.preventDefault(); textDiv.blur(); }
+      });
+
+      var senderDiv = document.createElement("div");
+      senderDiv.className = "sender";
+      senderDiv.textContent = "提出者：" + t.sender;
+
+      bodyDiv.appendChild(textDiv);
+      bodyDiv.appendChild(senderDiv);
+
+      var delBtn = document.createElement("button");
+      delBtn.className = "del";
+      delBtn.type = "button";
+      delBtn.setAttribute("aria-label", "この話題を削除");
+      delBtn.textContent = "✕";
+      delBtn.addEventListener("click", function () {
+        topics.splice(idx, 1);
+        renderEditList();
+      });
+
+      card.appendChild(bodyDiv);
+      card.appendChild(delBtn);
+      list.appendChild(card);
+    });
+    $("topic-count").textContent = topics.length;
+    $("empty-note").style.display = topics.length === 0 ? "block" : "none";
+  }
+
+  /* ── 画面3：くじ引き ── */
+  function topicSizeClass(text) {
+    var len = text.length;
+    if (len > 60) return "xsmall";
+    if (len > 30) return "small";
+    return "";
+  }
+
+  function updateRemain() {
+    $("remain-num").textContent = deck.length - drawIndex;
+    $("total-num").textContent = deck.length;
+  }
+
+  function startKuji() {
+    // 空文字の話題を除いてデッキを作成
+    var valid = topics.filter(function (t) { return t.text.trim().length > 0; });
+    if (valid.length === 0) return;
+    deck = shuffle(valid);
+    drawIndex = 0;
+    revealed = false;
+    isFlipping = false;
+
+    $("draw-view").style.display = "flex";
+    $("finish-view").style.display = "none";
+    $("btn-next").style.display = "none";
+    $("btn-restart").style.display = "none";
+    $("tap-hint").textContent = "カードをタップしてめくる";
+    $("kuji-stage").classList.remove("flipped");
+    $("kuji-topic").textContent = "";
+    updateRemain();
+    showScreen("kuji");
+  }
+
+  // カードをタップ → めくって話題を表示
+  function flipReveal() {
+    if (isFlipping || revealed) return;
+    if (drawIndex >= deck.length) return;
+
+    isFlipping = true;
+    var topic = deck[drawIndex];
+    var topicEl = $("kuji-topic");
+    topicEl.textContent = topic.text;
+    topicEl.className = "kuji-topic " + topicSizeClass(topic.text);
+
+    var stage = $("kuji-stage");
+    stage.classList.add("flipped");
+    $("tap-hint").textContent = "";
+
+    onFlipEnd(function () {
+      isFlipping = false;
+      revealed = true;
+      drawIndex++;
+      updateRemain();
+      $("btn-next").style.display = "block";
+    });
+  }
+
+  // 「次を引く」 → 裏面に戻す（残り0なら終了画面）
+  function nextCard() {
+    if (isFlipping) return;
+
+    if (drawIndex >= deck.length) {
+      // すべて引き終わった
+      $("draw-view").style.display = "none";
+      $("finish-view").style.display = "flex";
+      $("btn-next").style.display = "none";
+      $("btn-restart").style.display = "block";
+      return;
+    }
+
+    isFlipping = true;
+    revealed = false;
+    $("btn-next").style.display = "none";
+    var stage = $("kuji-stage");
+    stage.classList.remove("flipped");
+
+    onFlipEnd(function () {
+      $("kuji-topic").textContent = ""; // 裏に戻ってから内容を消す
+      isFlipping = false;
+      $("tap-hint").textContent = "カードをタップしてめくる";
+    });
+  }
+
+  // transitionend + 保険タイマーでアニメ完了を検知
+  function onFlipEnd(callback) {
+    var inner = document.querySelector("#kuji-stage .kuji-inner");
+    var done = false;
+    var fire = function () {
+      if (done) return;
+      done = true;
+      inner.removeEventListener("transitionend", fire);
+      callback();
+    };
+    inner.addEventListener("transitionend", fire);
+    setTimeout(fire, 800); // 保険
+  }
+
+  /* ═══════════ イベント ═══════════ */
+
+  // 画面1 → 画面2
+  $("btn-parse").addEventListener("click", function () {
+    var raw = $("paste-area").value;
+    var err = $("paste-error");
+    if (!raw.trim()) {
+      err.textContent = "トーク内容を貼り付けてください";
+      return;
+    }
+    err.textContent = "";
+    topics = extractTopics(raw);
+    renderEditList();
+    showScreen("edit");
+  });
+
+  // 画面2：手動追加
+  $("btn-add").addEventListener("click", function () {
+    topics.push({ text: "", sender: "手動追加" });
+    renderEditList();
+    // 追加したカードにフォーカス
+    var texts = document.querySelectorAll("#card-list .text");
+    if (texts.le
