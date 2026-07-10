@@ -680,4 +680,45 @@
     renderEditList();
     // 追加したカードにフォーカス
     var texts = document.querySelectorAll("#card-list .text");
-    if (texts.le
+    if (texts.length > 0) texts[texts.length - 1].focus();
+  });
+
+  // 画面2 → 画面3
+  $("btn-start").addEventListener("click", function () {
+    var valid = topics.filter(function (t) { return t.text.trim().length > 0; });
+    if (valid.length === 0) {
+      alert("話題が1件もありません。追加してください。");
+      return;
+    }
+    startKuji();
+  });
+
+  // 画面2 → 画面1
+  $("btn-back-paste").addEventListener("click", function () {
+    showScreen("paste");
+  });
+
+  // 画面3：カードタップでめくる
+  $("kuji-stage").addEventListener("click", function () {
+    flipReveal();
+  });
+
+  // 画面3：次を引く
+  $("btn-next").addEventListener("click", function () {
+    nextCard();
+  });
+
+  // 画面3：もう一度最初から
+  $("btn-restart").addEventListener("click", function () {
+    startKuji();
+  });
+
+  // 画面3 → 画面2
+  $("btn-back-edit").addEventListener("click", function () {
+    showScreen("edit");
+  });
+
+})();
+</script>
+</body>
+</html>
