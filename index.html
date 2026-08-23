@@ -2,682 +2,997 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>話題くじ引き</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>トークテーマくじ引き</title>
 <style>
-  :root {
-    --cream: #faf6f0;
-    --white: #ffffff;
-    --coral: #c94a2a;
-    --brown: #3d2b1f;
-    --gray: #a89e94;
-    --shadow: 0 6px 24px rgba(61, 43, 31, 0.10);
-    --serif: "Yu Mincho", "YuMincho", "Hiragino Mincho ProN", "HGS明朝E", serif;
-    --sans: "Hiragino Kaku Gothic ProN", "Yu Gothic", "YuGothic", "Meiryo", sans-serif;
-  }
-  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-  html, body { height: 100%; }
-  body {
-    background: var(--cream);
-    color: var(--brown);
-    font-family: var(--sans);
-    line-height: 1.6;
-    overscroll-behavior: none;
-  }
-  h1, h2, .kuji-topic, .finish-title { font-family: var(--serif); }
+/* ============================================================
+   配色・タイポトークン
+   ============================================================ */
+:root{
+  --ink:        #0C2523;  /* 背景（深い墨緑） */
+  --ink-2:      #10322E;  /* パネル */
+  --ink-3:      #1B4640;  /* 罫線・境界 */
+  --paper:      #EDE6D6;  /* 札の紙色 */
+  --paper-2:    #E2D9C4;  /* 札の紙色（影側） */
+  --text-dark:  #14302C;  /* 札の上の文字 */
+  --text-light: #E8EFEC;  /* 暗い背景の上の文字 */
+  --muted:      #7E9B95;  /* 補助文字 */
+  --brass:      #D9A93F;  /* アクセント（真鍮） */
+  --vermilion:  #C0402B;  /* 朱（決定印） */
 
-  .screen {
-    display: none;
-    flex-direction: column;
-    height: 100dvh;
-    max-width: 640px;
-    margin: 0 auto;
-  }
-  .screen.active { display: flex; }
+  --mincho: "Hiragino Mincho ProN","Hiragino Mincho Pro","Yu Mincho","YuMincho","Noto Serif JP","Source Han Serif JP",serif;
+  --gothic: system-ui,-apple-system,"Hiragino Sans","Hiragino Kaku Gothic ProN","Noto Sans JP","Yu Gothic","YuGothic",sans-serif;
+}
 
-  .screen-header {
-    padding: 20px 20px 8px;
-    text-align: center;
-    flex-shrink: 0;
-  }
-  .screen-header h1 { font-size: 1.35rem; letter-spacing: 0.12em; font-weight: 600; }
-  .screen-header p.sub { font-size: 0.8rem; color: var(--gray); margin-top: 4px; }
+*{box-sizing:border-box;}
+html,body{height:100%;margin:0;}
+body{
+  background:
+    radial-gradient(120% 90% at 50% 0%, #14413A 0%, var(--ink) 62%, #071A19 100%);
+  color:var(--text-light);
+  font-family:var(--gothic);
+  overflow:hidden;
+}
+button,input,textarea{font-family:inherit;}
+:focus-visible{outline:2px solid var(--brass);outline-offset:2px;}
 
-  .screen-body {
-    flex: 1;
-    overflow-y: auto;
-    padding: 12px 20px;
-    -webkit-overflow-scrolling: touch;
-  }
+/* ============================================================
+   全体レイアウト（16:9を基本に可変）
+   ============================================================ */
+.app{
+  position:relative;
+  height:100%;
+  display:grid;
+  grid-template-rows:auto 1fr auto;
+}
 
-  .screen-footer {
-    flex-shrink: 0;
-    padding: 12px 20px calc(16px + env(safe-area-inset-bottom));
-    background: linear-gradient(to top, var(--cream) 70%, rgba(250, 246, 240, 0));
-  }
+/* --- ヘッダ --- */
+.top{
+  display:flex;align-items:baseline;justify-content:space-between;
+  gap:16px;padding:clamp(12px,1.6vw,24px) clamp(16px,2.4vw,40px);
+}
+.brand{display:flex;align-items:baseline;gap:.6em;}
+.brand b{
+  font-family:var(--mincho);font-weight:600;
+  font-size:clamp(15px,1.5vw,22px);letter-spacing:.14em;
+}
+.brand span{
+  font-size:clamp(10px,.85vw,12px);letter-spacing:.34em;
+  color:var(--muted);text-transform:uppercase;
+}
+.counts{display:flex;gap:clamp(10px,1.4vw,22px);align-items:baseline;}
+.count{display:flex;align-items:baseline;gap:.4em;}
+.count i{
+  font-style:normal;font-size:clamp(9px,.8vw,11px);
+  letter-spacing:.24em;color:var(--muted);
+}
+.count b{
+  font-family:var(--mincho);font-size:clamp(17px,1.9vw,28px);
+  font-weight:600;color:var(--brass);font-variant-numeric:tabular-nums;
+}
 
-  .btn {
-    display: block;
-    width: 100%;
-    border: none;
-    border-radius: 16px;
-    padding: 16px;
-    font-size: 1.05rem;
-    font-family: var(--sans);
-    font-weight: 700;
-    letter-spacing: 0.08em;
-    cursor: pointer;
-    transition: transform 0.12s ease, opacity 0.12s ease;
-  }
-  .btn:active { transform: scale(0.97); }
-  .btn-primary { background: var(--coral); color: #fff; box-shadow: 0 4px 14px rgba(201, 74, 42, 0.30); }
-  .btn-secondary {
-    background: transparent;
-    color: var(--coral);
-    border: 1.5px dashed var(--coral);
-    font-weight: 600;
-    margin-bottom: 10px;
-  }
-  .btn-ghost {
-    background: transparent;
-    color: var(--gray);
-    font-size: 0.85rem;
-    font-weight: 500;
-    padding: 10px;
-    margin-top: 4px;
-  }
+/* --- 舞台（クリックで抽選） --- */
+.stage{
+  position:relative;display:grid;place-items:center;
+  padding:0 clamp(16px,3vw,56px);cursor:pointer;min-height:0;
+}
+.stage::after{ /* 押せることを示す控えめなヒント */
+  content:attr(data-hint);
+  position:absolute;bottom:0;left:50%;transform:translateX(-50%);
+  font-size:clamp(10px,.85vw,12px);letter-spacing:.22em;color:var(--muted);
+  opacity:.75;pointer-events:none;
+}
 
-  /* ── 画面1：貼り付け ── */
-  #screen-paste textarea {
-    width: 100%;
-    height: 100%;
-    min-height: 240px;
-    border: 1.5px solid #e6ddd2;
-    border-radius: 16px;
-    background: var(--white);
-    padding: 16px;
-    font-size: 16px; /* iOSズーム防止 */
-    font-family: var(--sans);
-    color: var(--brown);
-    resize: none;
-    box-shadow: var(--shadow);
-  }
-  #screen-paste textarea:focus { outline: 2px solid var(--coral); border-color: transparent; }
-  #screen-paste textarea::placeholder { color: #c4b8ab; }
-  #paste-error {
-    color: var(--coral);
-    font-size: 0.85rem;
-    text-align: center;
-    margin-top: 8px;
-    min-height: 1.4em;
-  }
+/* --- 札（くじ） --- */
+.fuda{
+  position:relative;
+  width:min(84vw,1180px);
+  height:min(58vh,540px);
+  background:linear-gradient(158deg,var(--paper) 0%,var(--paper-2) 100%);
+  color:var(--text-dark);
+  clip-path:polygon(
+    12% 0%, 88% 0%, 100% 11%, 100% 89%,
+    88% 100%, 12% 100%, 0% 89%, 0% 11%);
+  box-shadow:0 26px 60px rgba(0,0,0,.5), 0 2px 0 rgba(255,255,255,.16) inset;
+  display:grid;place-items:center;
+  transition:transform .5s cubic-bezier(.16,1,.3,1), filter .5s;
+}
+.fuda::before{ /* 内側の二重罫 */
+  content:"";position:absolute;inset:clamp(12px,1.4vw,22px);
+  border:1px solid rgba(20,48,44,.28);
+  box-shadow:0 0 0 4px var(--paper) , 0 0 0 5px rgba(20,48,44,.14);
+  pointer-events:none;
+}
+.fuda.spinning{animation:hum .32s ease-in-out infinite alternate;}
+@keyframes hum{from{transform:translateY(0) rotate(-.15deg);}to{transform:translateY(-5px) rotate(.15deg);}}
+.fuda.decided{filter:drop-shadow(0 0 26px rgba(217,169,63,.5));}
 
-  /* ── 画面2：確認・編集 ── */
-  .count-badge {
-    display: inline-block;
-    background: var(--white);
-    border-radius: 999px;
-    padding: 6px 18px;
-    box-shadow: var(--shadow);
-    font-size: 0.9rem;
-    margin-top: 6px;
-  }
-  .count-badge strong { color: var(--coral); font-size: 1.15rem; margin: 0 2px; }
+.themeBox{
+  position:relative;z-index:1;
+  width:calc(100% - clamp(56px,7vw,110px));
+  height:calc(100% - clamp(56px,7vw,110px));
+  display:grid;place-items:center;overflow:hidden;
+}
+.themeText{
+  font-family:var(--mincho);font-weight:600;
+  line-height:1.34;letter-spacing:.02em;text-align:center;
+  font-size:6vw; /* JSが自動調整 */
+  overflow-wrap:anywhere;word-break:normal;line-break:strict;
+  text-wrap:balance;      /* 行の長さを揃え、最終行が極端に短くならないようにする */
+  max-width:100%;
+}
+.themeText.flick{animation:flick .09s steps(2,end);}
+@keyframes flick{from{opacity:.28;transform:translateY(2px);}to{opacity:1;transform:none;}}
+.themeText.pop{animation:pop .58s cubic-bezier(.16,1,.3,1);}
+@keyframes pop{
+  0%{opacity:0;transform:scale(.86);}
+  60%{opacity:1;transform:scale(1.035);}
+  100%{opacity:1;transform:scale(1);}
+}
+.themeText.idle{color:#5C7370;font-weight:400;}
 
-  .topic-card {
-    background: var(--white);
-    border-radius: 16px;
-    box-shadow: var(--shadow);
-    padding: 14px 14px 10px;
-    margin-bottom: 12px;
-    display: flex;
-    gap: 10px;
-    align-items: flex-start;
-  }
-  .topic-card .body { flex: 1; min-width: 0; }
-  .topic-card .text {
-    font-size: 0.98rem;
-    outline: none;
-    border-radius: 8px;
-    padding: 4px 6px;
-    min-height: 1.6em;
-    word-break: break-word;
-    white-space: pre-wrap;
-  }
-  .topic-card .text:focus { background: #fdf3ee; box-shadow: inset 0 0 0 1.5px var(--coral); }
-  .topic-card .text:empty::before { content: "話題を入力…"; color: #c4b8ab; }
-  .topic-card .sender {
-    font-size: 0.72rem;
-    color: var(--gray);
-    margin-top: 4px;
-    padding-left: 6px;
-  }
-  .topic-card .del {
-    flex-shrink: 0;
-    width: 34px;
-    height: 34px;
-    border: none;
-    border-radius: 50%;
-    background: #f3ece3;
-    color: #9c8d7e;
-    font-size: 1rem;
-    line-height: 1;
-    cursor: pointer;
-  }
-  .topic-card .del:active { background: var(--coral); color: #fff; }
-  #empty-note {
-    text-align: center;
-    color: var(--gray);
-    font-size: 0.88rem;
-    padding: 32px 12px;
-    display: none;
-  }
+/* 決定印（この画面の主役） */
+.seal{
+  position:absolute;z-index:2;
+  right:clamp(14px,2.4vw,40px);bottom:clamp(10px,2vw,32px);
+  width:clamp(64px,7.6vw,124px);aspect-ratio:1;
+  display:grid;place-items:center;
+  border:3px solid var(--vermilion);border-radius:50%;
+  color:var(--vermilion);
+  font-family:var(--mincho);font-weight:700;
+  font-size:clamp(19px,2.3vw,38px);letter-spacing:.06em;
+  opacity:0;transform:scale(2.6) rotate(-24deg);
+  mix-blend-mode:multiply;
+}
+.seal.on{animation:stamp .42s cubic-bezier(.2,1.5,.4,1) forwards;}
+@keyframes stamp{
+  0%{opacity:0;transform:scale(2.6) rotate(-24deg);}
+  70%{opacity:.95;transform:scale(.94) rotate(-8deg);}
+  100%{opacity:.9;transform:scale(1) rotate(-9deg);}
+}
 
-  /* ── 画面3：くじ引き ── */
-  #screen-kuji .screen-body {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    overflow: hidden;
-  }
-  .remain {
-    font-size: 0.95rem;
-    letter-spacing: 0.1em;
-    color: var(--brown);
-    margin-bottom: 18px;
-  }
-  .remain strong { color: var(--coral); font-size: 1.3rem; font-family: var(--serif); margin: 0 3px; }
+/* --- 操作列 --- */
+.bottom{
+  display:flex;align-items:center;justify-content:center;gap:clamp(8px,1.1vw,16px);
+  flex-wrap:wrap;padding:clamp(12px,1.8vw,28px) clamp(16px,2.4vw,40px);
+}
+.btn{
+  appearance:none;cursor:pointer;
+  background:transparent;color:var(--text-light);
+  border:1px solid var(--ink-3);border-radius:999px;
+  padding:.7em 1.5em;font-size:clamp(12px,1vw,14px);letter-spacing:.1em;
+  transition:background .18s,border-color .18s,color .18s,transform .18s;
+}
+.btn:hover:not(:disabled){background:var(--ink-2);border-color:var(--brass);}
+.btn:active:not(:disabled){transform:translateY(1px);}
+.btn:disabled{opacity:.34;cursor:not-allowed;}
+.btn.primary{
+  background:var(--brass);border-color:var(--brass);color:#22190A;
+  font-weight:700;padding:.82em 2.4em;letter-spacing:.16em;
+  font-size:clamp(13px,1.15vw,17px);
+}
+.btn.primary:hover:not(:disabled){background:#E7BC55;border-color:#E7BC55;}
+.btn.ghost{border-color:transparent;color:var(--muted);}
+.btn.ghost:hover{color:var(--text-light);background:var(--ink-2);}
+.btn.danger{border-color:#5A2B24;color:#E39082;}
+.btn.danger:hover{background:#3A1A15;border-color:#C0402B;}
 
-  .kuji-stage {
-    width: min(78vw, 340px);
-    height: min(104vw, 452px);
-    perspective: 1200px;
-  }
-  .kuji-inner {
-    position: relative;
-    width: 100%;
-    height: 100%;
-    transform-style: preserve-3d;
-    transition: transform 0.65s cubic-bezier(0.4, 0.1, 0.2, 1);
-  }
-  .kuji-stage.flipped .kuji-inner { transform: rotateY(180deg); }
-  .kuji-face {
-    position: absolute;
-    inset: 0;
-    backface-visibility: hidden;
-    -webkit-backface-visibility: hidden;
-    border-radius: 16px;
-    box-shadow: var(--shadow);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-  /* 裏面：クリーム地＋幾何学模様 */
-  .kuji-back {
-    background-color: #fdf8f0;
-    background-image:
-      linear-gradient(45deg, rgba(201,74,42,0.055) 25%, transparent 25%, transparent 75%, rgba(201,74,42,0.055) 75%),
-      linear-gradient(-45deg, rgba(201,74,42,0.055) 25%, transparent 25%, transparent 75%, rgba(201,74,42,0.055) 75%);
-    background-size: 30px 30px;
-    border: 1px solid #efe6d8;
-    cursor: pointer;
-  }
-  .kuji-back .emblem {
-    width: 76px;
-    height: 76px;
-    border: 1.5px solid rgba(201,74,42,0.45);
-    transform: rotate(45deg);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: rgba(253,248,240,0.9);
-  }
-  .kuji-back .emblem::before {
-    content: "";
-    width: 54px;
-    height: 54px;
-    border: 1px solid rgba(201,74,42,0.30);
-  }
-  /* 表面：話題 */
-  .kuji-front {
-    background: var(--white);
-    transform: rotateY(180deg);
-    padding: 28px 22px;
-    border: 1px solid #f0e9df;
-  }
-  .kuji-topic {
-    text-align: center;
-    font-weight: 600;
-    line-height: 1.75;
-    word-break: break-word;
-    font-size: 1.45rem; /* 基本サイズ（30文字以下） */
-  }
-  .kuji-topic.small { font-size: 1.12rem; }   /* 31〜60文字 */
-  .kuji-topic.xsmall { font-size: 0.92rem; }  /* 61文字以上 */
+/* ============================================================
+   設定パネル（右からのドロワー）
+   ============================================================ */
+.drawer{
+  position:fixed;top:0;right:0;height:100%;
+  width:min(440px,100%);
+  background:var(--ink-2);border-left:1px solid var(--ink-3);
+  box-shadow:-24px 0 60px rgba(0,0,0,.45);
+  transform:translateX(101%);transition:transform .34s cubic-bezier(.16,1,.3,1);
+  display:flex;flex-direction:column;z-index:20;
+}
+.drawer.open{transform:none;}
+.drawer header{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:20px 22px 14px;border-bottom:1px solid var(--ink-3);
+}
+.drawer h2{
+  margin:0;font-family:var(--mincho);font-weight:600;
+  font-size:17px;letter-spacing:.14em;
+}
+.drawer .body{overflow-y:auto;padding:20px 22px 40px;}
+.sect{margin-bottom:30px;}
+.sect > h3{
+  margin:0 0 10px;font-size:10px;letter-spacing:.26em;
+  color:var(--brass);font-weight:600;
+}
+.hint{margin:0 0 10px;font-size:12px;line-height:1.75;color:var(--muted);}
+textarea{
+  width:100%;min-height:150px;resize:vertical;
+  background:#0A2220;color:var(--text-light);
+  border:1px solid var(--ink-3);border-radius:6px;
+  padding:12px 13px;font-size:13.5px;line-height:1.85;
+}
+textarea::placeholder{color:#527069;}
+.row{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;}
+.notice{
+  margin-top:10px;font-size:12px;line-height:1.7;color:var(--brass);
+  min-height:1.7em;
+}
+.notice.warn{color:#E39082;}
 
-  .tap-hint {
-    margin-top: 18px;
-    font-size: 0.82rem;
-    color: var(--gray);
-    letter-spacing: 0.1em;
-    min-height: 1.4em;
-    transition: opacity 0.3s;
-  }
+/* テーマ一覧（各行がそのまま編集欄） */
+.list{list-style:none;margin:0;padding:0;}
+.list li{
+  display:flex;align-items:center;gap:8px;
+  padding:5px 0;border-bottom:1px dashed var(--ink-3);
+}
+.list .no{
+  flex:0 0 2.1em;text-align:right;
+  font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums;
+}
+.list input{
+  flex:1;min-width:0;background:transparent;color:var(--text-light);
+  border:1px solid transparent;border-radius:4px;
+  padding:6px 8px;font-size:13.5px;
+}
+.list input:hover{border-color:var(--ink-3);}
+.list input:focus{border-color:var(--brass);background:#0A2220;}
+.list input.done{color:#5F817B;text-decoration:line-through;}
+.del{
+  flex:0 0 auto;appearance:none;cursor:pointer;
+  background:transparent;border:1px solid var(--ink-3);border-radius:4px;
+  color:var(--muted);width:28px;height:28px;font-size:14px;line-height:1;
+}
+.del:hover{color:#E39082;border-color:#C0402B;}
+.empty{font-size:12.5px;color:var(--muted);padding:8px 0;}
 
-  /* 終了画面 */
-  #finish-view {
-    display: none;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    text-align: center;
-  }
-  .finish-title { font-size: 1.7rem; letter-spacing: 0.14em; margin-bottom: 10px; }
-  .finish-sub { color: var(--gray); font-size: 0.9rem; }
-  .finish-mark {
-    width: 64px; height: 64px;
-    border: 1.5px solid var(--coral);
-    transform: rotate(45deg);
-    margin-bottom: 28px;
-    display: flex; align-items: center; justify-content: center;
-  }
-  .finish-mark span { transform: rotate(-45deg); color: var(--coral); font-size: 1.5rem; font-family: var(--serif); }
+/* トグル */
+.toggle{
+  display:flex;align-items:flex-start;gap:11px;
+  padding:11px 0;border-bottom:1px solid var(--ink-3);cursor:pointer;
+}
+.toggle:last-child{border-bottom:none;}
+.toggle input{
+  appearance:none;margin:2px 0 0;flex:0 0 auto;
+  width:38px;height:21px;border-radius:999px;
+  background:#0A2220;border:1px solid var(--ink-3);
+  position:relative;cursor:pointer;transition:background .2s,border-color .2s;
+}
+.toggle input::after{
+  content:"";position:absolute;top:2px;left:2px;
+  width:15px;height:15px;border-radius:50%;
+  background:var(--muted);transition:transform .2s,background .2s;
+}
+.toggle input:checked{background:#3D3213;border-color:var(--brass);}
+.toggle input:checked::after{transform:translateX(17px);background:var(--brass);}
+.toggle .tx{font-size:13.5px;line-height:1.55;}
+.toggle .tx small{display:block;font-size:11.5px;color:var(--muted);margin-top:3px;}
 
-  @media (prefers-reduced-motion: reduce) {
-    .kuji-inner { transition-duration: 0.01s; }
-    .btn { transition: none; }
-  }
+/* 履歴 */
+.hist{list-style:none;margin:0;padding:0;}
+.hist li{
+  display:flex;gap:10px;padding:7px 0;font-size:13px;
+  border-bottom:1px dashed var(--ink-3);
+}
+.hist .n{
+  flex:0 0 1.9em;color:var(--brass);font-variant-numeric:tabular-nums;font-size:11.5px;
+}
+
+.scrim{
+  position:fixed;inset:0;background:rgba(4,16,15,.6);
+  opacity:0;pointer-events:none;transition:opacity .3s;z-index:15;
+}
+.scrim.on{opacity:1;pointer-events:auto;}
+
+/* ============================================================
+   狭い画面
+   ============================================================ */
+@media (max-width:760px){
+  .fuda{width:92vw;height:min(52vh,420px);}
+  .themeText{line-height:1.42;}
+  .top{flex-direction:column;gap:8px;align-items:flex-start;}
+  .btn{padding:.68em 1.15em;}
+  .btn.primary{padding:.8em 1.8em;}
+  .stage::after{display:none;}
+}
+@media (prefers-reduced-motion:reduce){
+  .fuda.spinning{animation:none;}
+  .themeText.flick,.themeText.pop,.seal.on{animation-duration:.01s;}
+  .seal.on{opacity:.9;transform:scale(1) rotate(-9deg);}
+  *{transition-duration:.01s !important;}
+}
 </style>
 </head>
 <body>
+<div class="app">
 
-<!-- ═══ 画面1：貼り付け ═══ -->
-<div class="screen active" id="screen-paste">
-  <header class="screen-header">
-    <h1>話題くじ引き</h1>
-    <p class="sub">トーク内容から話題カードをつくります</p>
-  </header>
-  <div class="screen-body">
-    <textarea id="paste-area" placeholder="LINEのトーク内容をそのまま貼り付けてください"></textarea>
-    <div id="paste-error"></div>
+  <div class="top">
+    <div class="brand">
+      <b>トークテーマくじ引き</b><span>merit</span>
+    </div>
+    <div class="counts">
+      <div class="count"><i>残り</i><b id="cRemain">0</b></div>
+      <div class="count"><i>登録</i><b id="cTotal">0</b></div>
+      <div class="count"><i>履歴</i><b id="cHist">0</b></div>
+    </div>
   </div>
-  <footer class="screen-footer">
-    <button class="btn btn-primary" id="btn-parse">くじを作成</button>
-  </footer>
-</div>
 
-<!-- ═══ 画面2：確認・編集 ═══ -->
-<div class="screen" id="screen-edit">
-  <header class="screen-header">
-    <h1>話題の確認</h1>
-    <div class="count-badge">話題 <strong id="topic-count">0</strong> 件</div>
-  </header>
-  <div class="screen-body">
-    <div id="card-list"></div>
-    <p id="empty-note">話題が見つかりませんでした。<br>「話題を手動で追加」から入力できます。</p>
-  </div>
-  <footer class="screen-footer">
-    <button class="btn btn-secondary" id="btn-add">＋ 話題を手動で追加</button>
-    <button class="btn btn-primary" id="btn-start">くじ引きを開始</button>
-    <button class="btn btn-ghost" id="btn-back-paste">← 貼り付けに戻る</button>
-  </footer>
-</div>
-
-<!-- ═══ 画面3：くじ引き ═══ -->
-<div class="screen" id="screen-kuji">
-  <header class="screen-header">
-    <h1>くじ引き</h1>
-  </header>
-  <div class="screen-body">
-    <div id="draw-view" style="display:flex;flex-direction:column;align-items:center;">
-      <div class="remain">残り <strong id="remain-num">0</strong> / <span id="total-num">0</span></div>
-      <div class="kuji-stage" id="kuji-stage">
-        <div class="kuji-inner">
-          <div class="kuji-face kuji-back"><div class="emblem"></div></div>
-          <div class="kuji-face kuji-front"><p class="kuji-topic" id="kuji-topic"></p></div>
-        </div>
+  <div class="stage" id="stage" data-hint="画面またはスペースキーでスタート">
+    <div class="fuda" id="fuda">
+      <div class="themeBox" id="themeBox">
+        <div class="themeText idle" id="themeText">スタートを押してください</div>
       </div>
-      <p class="tap-hint" id="tap-hint">カードをタップしてめくる</p>
-    </div>
-    <div id="finish-view">
-      <div class="finish-mark"><span>了</span></div>
-      <p class="finish-title">おつかれさまでした</p>
-      <p class="finish-sub">すべての話題を引き終わりました</p>
+      <div class="seal" id="seal">決定</div>
     </div>
   </div>
-  <footer class="screen-footer">
-    <button class="btn btn-primary" id="btn-next" style="display:none;">次を引く</button>
-    <button class="btn btn-primary" id="btn-restart" style="display:none;">もう一度最初から</button>
-    <button class="btn btn-ghost" id="btn-back-edit">← 話題の編集に戻る</button>
-  </footer>
+
+  <div class="bottom">
+    <button class="btn primary" id="btnStart">スタート</button>
+    <button class="btn" id="btnSettings">テーマを編集</button>
+    <button class="btn ghost" id="btnReset">履歴と除外をリセット</button>
+    <button class="btn ghost" id="btnFull">全画面表示</button>
+  </div>
 </div>
+
+<div class="scrim" id="scrim"></div>
+
+<aside class="drawer" id="drawer" aria-label="設定">
+  <header>
+    <h2>テーマと設定</h2>
+    <button class="btn ghost" id="btnClose">閉じる</button>
+  </header>
+  <div class="body">
+
+    <div class="sect">
+      <h3>テーマを入力</h3>
+      <p class="hint">1行に1テーマ。改行を含むテキストをそのまま貼り付けると、1行ずつ別のテーマになります。行頭の「・」「-」「1.」などの記号は自動で外します。</p>
+      <textarea id="input" placeholder="最近ハマっていること&#10;人生で一番おいしかった食べ物&#10;学生時代に戻れたらやりたいこと"></textarea>
+      <div class="row">
+        <button class="btn primary" id="btnReplace">登録</button>
+        <button class="btn" id="btnAppend">追加で登録</button>
+        <button class="btn ghost" id="btnClearInput">入力欄を空にする</button>
+      </div>
+      <p class="notice" id="notice"></p>
+    </div>
+
+    <div class="sect">
+      <h3>登録済みのテーマ</h3>
+      <p class="hint">文字をクリックするとその場で直せます。</p>
+      <ul class="list" id="list"></ul>
+      <div class="row">
+        <button class="btn danger" id="btnDeleteAll">すべて削除</button>
+      </div>
+    </div>
+
+    <div class="sect">
+      <h3>抽選の設定</h3>
+      <label class="toggle">
+        <input type="checkbox" id="optExclude" checked>
+        <span class="tx">一度出たテーマを除外する
+          <small>全部出たら「全テーマ終了」と表示します。</small></span>
+      </label>
+      <label class="toggle">
+        <input type="checkbox" id="optSound">
+        <span class="tx">効果音を鳴らす
+          <small>回転中のカチカチ音と、決定音が鳴ります。</small></span>
+      </label>
+      <label class="toggle">
+        <input type="checkbox" id="optSync">
+        <span class="tx">くじを保存する
+          <small id="syncNote">テーマと履歴を保存し、次に開いたときも同じ内容で使えます。</small></span>
+      </label>
+      <div class="row">
+        <button class="btn ghost" id="btnSyncNow">今すぐ保存</button>
+      </div>
+      <p class="notice" id="syncStatus"></p>
+    </div>
+
+    <div class="sect">
+      <h3>出た順の履歴</h3>
+      <ul class="hist" id="hist"></ul>
+      <div class="row">
+        <button class="btn ghost" id="btnClearHist">履歴を消す</button>
+      </div>
+    </div>
+
+  </div>
+</aside>
 
 <script>
-(function () {
-  "use strict";
+/* ============================================================
+   1. 初期サンプルテーマ ★ここを書き換えれば初期値が変わります
+   ============================================================ */
+const SAMPLE_THEMES = [
+  "最近ハマっていること",
+  "人生で一番おいしかった食べ物",
+  "休日の過ごし方",
+  "最近ちょっと嬉しかったこと",
+  "学生時代に戻れたらやりたいこと",
+  "行ってみたい国と、その理由",
+  "自分の意外な特技",
+  "もう一度観たい映画・ドラマ",
+  "10年後の自分は何をしていそうか",
+  "今日ここに来た理由"
+];
 
-  /* ═══════════ 状態（すべてメモリ上で保持） ═══════════ */
-  var topics = [];        // { text: string, sender: string }
-  var deck = [];          // シャッフル済みの topics コピー
-  var drawIndex = 0;      // 次に引く位置
-  var isFlipping = false; // めくりアニメーション中フラグ
-  var revealed = false;   // 現在カードが表になっているか
+/* ------------------------------------------------------------
+   状態
+   ------------------------------------------------------------ */
+let themes  = SAMPLE_THEMES.slice();
+let drawn   = [];      // 出たテーマ（履歴と除外に使う）
+let spinning = false;
+let timer    = null;
+let lastShown = null;
 
-  /* ═══════════ 抽出ロジック ═══════════ */
+const $ = id => document.getElementById(id);
+const el = {
+  stage:$("stage"), fuda:$("fuda"), themeBox:$("themeBox"), themeText:$("themeText"),
+  seal:$("seal"), start:$("btnStart"), notice:$("notice"),
+  cRemain:$("cRemain"), cTotal:$("cTotal"), cHist:$("cHist"),
+  list:$("list"), hist:$("hist"), input:$("input"),
+  drawer:$("drawer"), scrim:$("scrim"),
+  optExclude:$("optExclude"), optSound:$("optSound"),
+  optSync:$("optSync"), syncNote:$("syncNote"), syncStatus:$("syncStatus")
+};
 
-  // 除外：飲み物名のみの行
-  var DRINKS = [
-    "コーヒー","アイスコーヒー","ホットコーヒー","ブレンド","アメリカーノ","エスプレッソ",
-    "カフェラテ","ラテ","アイスラテ","ホットラテ","カフェオレ","カプチーノ","カフェモカ","モカ",
-    "紅茶","アイスティー","ホットティー","ミルクティー","レモンティー","チャイ",
-    "抹茶ラテ","抹茶","ほうじ茶","ほうじ茶ラテ","緑茶","ウーロン茶","烏龍茶","ジャスミン茶","麦茶","お茶",
-    "ジュース","オレンジジュース","アップルジュース","グレープフルーツジュース","トマトジュース",
-    "コーラ","サイダー","ジンジャーエール","ソーダ","レモネード","カルピス",
-    "水","お水","ミネラルウォーター","炭酸水","スムージー","ココア","ミルク","牛乳","豆乳",
-    "タピオカ","タピオカミルクティー","フラペチーノ",
-    "ビール","生ビール","ワイン","赤ワイン","白ワイン","日本酒","焼酎","ハイボール",
-    "レモンサワー","サワー","梅酒","カクテル","ノンアルコールビール"
-  ];
+/* ============================================================
+   2. テーマの分割・正規化 ★改行ペースト対応の中心部分
+   ============================================================ */
+// 行頭の箇条書き記号・連番を落とすためのパターン
+const BULLET = /^[\s　]*(?:[・･‧⋅\-–—ー‐*＊+＋●○◯■□▪▫◆◇>＞»→]|[0-9０-９]{1,3}\s*[.)．）、，:：]|[（(]\s*[0-9０-９]{1,3}\s*[)）]|[①-⑳㉑-㉟]|[⑴-⒇]|[ⅰ-ⅹ]\s*[.)．）])\s*/;
 
-  // 除外：挨拶・定型文
-  var GREETING_RES = [
-    /よろしく(お願い|おねがい)?(します|いたします|致します)?[!！~〜。]*$/,
-    /^宜しくお願い(します|いたします|致します)?/,
-    /^(参加|さんか)(します|できます|したいです|希望です?)[!！。]*$/,
-    /^不?参加です[。!！]*$/,
-    /^(ありがとう(ございます|ございました)?|有難うございます)[!！。]*$/,
-    /^(おはよう(ございます)?|こんにちは|こんばんは|はじめまして|初めまして)[!！。]*$/,
-    /^(お疲れ様|おつかれさま|お疲れさま)(です|でした)?[!!！。]*$/,
-    /^(了解|承知)(です|しました|いたしました)?[!！。]*$/,
-    /^楽しみ(です|にしています|にしてます)[!！。]*$/,
-    /^(はい|うん|OK|ok|オッケー|おけ)[!！。]*$/,
-    /^(すみません|すいません|ごめんなさい)[!！。]*$/
-  ];
+function parseLines(raw){
+  // 改行（CRLF / CR / LF）とタブで分割。Excelの列コピーにも対応。
+  const rawLines = String(raw).split(/\r\n|\r|\n|\t/);
+  const out = [];
+  let dup = 0;
+  const seen = new Set();
 
-  // 除外：システム行・スタンプ表記など
-  var SYSTEM_RES = [
-    /^\[?(スタンプ|写真|画像|動画|ボイスメッセージ|アルバム|ノート|ファイル|位置情報|連絡先)\]?$/,
-    /^\[(Sticker|Photo|Video|Voice message|File)\]$/i,
-    /^(既読|未読)\s*\d*$/,
-    /(が退出しました|が参加しました|がグループに招待しました|を招待しました|グループを作成しました|メッセージの送信を取り消しました|通話時間|不在着信|☎)/
-  ];
-
-  // 日付行 例: 2025/07/01(火), 2025.7.1, 2025年7月1日(火)
-  var DATE_RE = /^\d{4}[\/\.年]\s?\d{1,2}[\/\.月]\s?\d{1,2}日?\s*([(（][月火水木金土日][)）])?$/;
-  // タブ区切りエクスポート形式: "19:23\t田中\tメッセージ"
-  var TAB_RE = /^(\d{1,2}:\d{2})\t([^\t]*)\t?(.*)$/;
-  // スペース区切り形式: "19:23 田中 メッセージ"
-  var SPACE_RE = /^(\d{1,2}:\d{2})\s+(\S{1,20})\s+(.+)$/;
-  // 絵文字
-  var EMOJI_RE = /[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}\u{FE00}-\u{FE0F}\u{200D}\u{1F1E6}-\u{1F1FF}]/gu;
-  // 行頭の番号・記号（1. ・ ① - ● など）
-  var LEAD_MARK_RE = /^[\s　]*(?:[0-9０-９]{1,3}\s*[.．、)）:：]|[①-⑳㉑-㉟]|[・･•●○◎▪▫■□◆◇★☆※»>]|[-–—ー=]{1,2}|\*{1,2})[\s　]*/;
-
-  function isDrinkOnly(line) {
-    // 「〜で」「〜をお願いします」「〜ください」などの注文語尾を落として判定
-    var s = line
-      .replace(/[!！。、\s　]/g, "")
-      .replace(/(でお願いします|をお願いします|お願いします|ください|下さい|で大丈夫です|でいいです|で$|希望です)$/g, "")
-      .replace(/^(私は|ぼくは|僕は|自分は|わたしは)/, "");
-    if (!s) return false;
-    if (DRINKS.indexOf(s) !== -1) return true;
-    // 「アイス◯◯」「ホット◯◯」の組み合わせ
-    var m = s.match(/^(アイス|ホット)(.+)$/);
-    if (m && DRINKS.indexOf(m[2]) !== -1) return true;
-    return false;
+  for(let line of rawLines){
+    line = line.replace(/[　\s]+/g," ");        // 全角スペース・連続空白を1つに
+    line = line.trim();
+    if(!line) continue;                              // 空行は無視
+    line = line.replace(BULLET,"").trim();           // 行頭記号・連番を除去
+    line = line.replace(/^"(.*)"$/,"$1").replace(/""/g,'"').trim(); // Excelの引用符
+    if(!line) continue;
+    const key = line;
+    if(seen.has(key)){ dup++; continue; }            // 貼り付け内での重複
+    seen.add(key);
+    out.push(line);
   }
+  return {items:out, dup:dup};
+}
 
-  function cleanLine(raw) {
-    var s = raw;
-    s = s.replace(/https?:\/\/\S+/g, "");            // URL除去
-    s = s.replace(/\((絵文字|emoji)\)/gi, "");
-    s = s.replace(/\[(スタンプ|絵文字)\]/g, "");
-    s = s.replace(EMOJI_RE, "");                      // 絵文字除去
-    s = s.replace(LEAD_MARK_RE, "");                  // 行頭の番号・記号
-    s = s.replace(/[\s　]+$/g, "").replace(/^[\s　]+/g, "");
-    return s;
-  }
+/* ============================================================
+   3. 登録・一覧・履歴の描画
+   ============================================================ */
+function setNotice(msg, warn){
+  el.notice.textContent = msg || "";
+  el.notice.classList.toggle("warn", !!warn);
+}
 
-  function extractTopics(text) {
-    var lines = text.split(/\r?\n/);
-    var results = [];
-    var seen = {};
-    var currentSender = "";
+function candidates(){
+  if(!el.optExclude.checked) return themes.slice();
+  return themes.filter(t => !drawn.includes(t));
+}
 
-    for (var i = 0; i < lines.length; i++) {
-      var line = lines[i].replace(/\u200B/g, "").trim();
-      if (!line) continue;                 // 空行
-      if (DATE_RE.test(line)) continue;    // 日付行
-      if (/^\d{1,2}:\d{2}$/.test(line)) continue; // 時刻のみの行
+function render(){
+  // 件数
+  el.cTotal.textContent  = themes.length;
+  el.cRemain.textContent = candidates().length;
+  el.cHist.textContent   = drawn.length;
 
-      var body = line;
-      var m = line.match(TAB_RE);
-      if (m) {
-        if (m[2]) currentSender = m[2].trim();
-        body = (m[3] || "").trim();
-      } else {
-        var m2 = line.match(SPACE_RE);
-        if (m2) {
-          currentSender = m2[2].trim();
-          body = m2[3].trim();
-        }
-        // どちらにも一致しない行は、直前の送信者の続き（複数行メッセージ）として扱う
-      }
-      if (!body) continue;
+  // 一覧（行がそのまま編集欄）
+  el.list.innerHTML = "";
+  if(themes.length === 0){
+    const p = document.createElement("li");
+    p.className = "empty";
+    p.textContent = "まだテーマがありません。上の欄に入力して登録してください。";
+    el.list.appendChild(p);
+  }else{
+    themes.forEach((t,i)=>{
+      const li = document.createElement("li");
 
-      // システム行の除外（クリーニング前に判定）
-      var skip = false;
-      for (var s = 0; s < SYSTEM_RES.length; s++) {
-        if (SYSTEM_RES[s].test(body)) { skip = true; break; }
-      }
-      if (skip) continue;
+      const no = document.createElement("span");
+      no.className = "no"; no.textContent = (i+1);
 
-      var cleaned = cleanLine(body);
-      if (!cleaned) continue;
-
-      // 挨拶文の除外
-      for (var g = 0; g < GREETING_RES.length; g++) {
-        if (GREETING_RES[g].test(cleaned)) { skip = true; break; }
-      }
-      if (skip) continue;
-
-      // 飲み物のみの行を除外
-      if (isDrinkOnly(cleaned)) continue;
-
-      // 重複統合（完全一致）
-      if (seen[cleaned]) continue;
-      seen[cleaned] = true;
-
-      results.push({ text: cleaned, sender: currentSender || "不明" });
-    }
-    return results;
-  }
-
-  /* ═══════════ Fisher-Yates シャッフル ═══════════ */
-  function shuffle(arr) {
-    var a = arr.slice();
-    for (var i = a.length - 1; i > 0; i--) {
-      var j = Math.floor(Math.random() * (i + 1));
-      var tmp = a[i]; a[i] = a[j]; a[j] = tmp;
-    }
-    return a;
-  }
-
-  /* ═══════════ 画面制御 ═══════════ */
-  var $ = function (id) { return document.getElementById(id); };
-  var screens = { paste: $("screen-paste"), edit: $("screen-edit"), kuji: $("screen-kuji") };
-
-  function showScreen(name) {
-    for (var k in screens) screens[k].classList.remove("active");
-    screens[name].classList.add("active");
-    window.scrollTo(0, 0);
-  }
-
-  /* ── 画面2：カード一覧の描画 ── */
-  function renderEditList() {
-    var list = $("card-list");
-    list.innerHTML = "";
-    topics.forEach(function (t, idx) {
-      var card = document.createElement("div");
-      card.className = "topic-card";
-
-      var bodyDiv = document.createElement("div");
-      bodyDiv.className = "body";
-
-      var textDiv = document.createElement("div");
-      textDiv.className = "text";
-      textDiv.contentEditable = "true";
-      textDiv.textContent = t.text;
-      textDiv.addEventListener("input", function () {
-        topics[idx].text = textDiv.textContent.trim();
-      });
-      textDiv.addEventListener("keydown", function (e) {
-        if (e.key === "Enter") { e.preventDefault(); textDiv.blur(); }
+      const inp = document.createElement("input");
+      inp.type = "text"; inp.value = t;
+      inp.setAttribute("aria-label", (i+1)+"番目のテーマ");
+      if(drawn.includes(t)) inp.classList.add("done");
+      inp.addEventListener("change", ()=>{
+        const v = inp.value.trim();
+        if(!v){ themes.splice(i,1); }
+        else   { themes[i] = v; }
+        render();
+        setNotice("テーマを更新しました。");
       });
 
-      var senderDiv = document.createElement("div");
-      senderDiv.className = "sender";
-      senderDiv.textContent = "提出者：" + t.sender;
-
-      bodyDiv.appendChild(textDiv);
-      bodyDiv.appendChild(senderDiv);
-
-      var delBtn = document.createElement("button");
-      delBtn.className = "del";
-      delBtn.type = "button";
-      delBtn.setAttribute("aria-label", "この話題を削除");
-      delBtn.textContent = "✕";
-      delBtn.addEventListener("click", function () {
-        topics.splice(idx, 1);
-        renderEditList();
+      const del = document.createElement("button");
+      del.className = "del"; del.type = "button";
+      del.textContent = "×";
+      del.setAttribute("aria-label", (i+1)+"番目のテーマを削除");
+      del.addEventListener("click", ()=>{
+        themes.splice(i,1); render();
+        setNotice("1件削除しました。");
       });
 
-      card.appendChild(bodyDiv);
-      card.appendChild(delBtn);
-      list.appendChild(card);
-    });
-    $("topic-count").textContent = topics.length;
-    $("empty-note").style.display = topics.length === 0 ? "block" : "none";
-  }
-
-  /* ── 画面3：くじ引き ── */
-  function topicSizeClass(text) {
-    var len = text.length;
-    if (len > 60) return "xsmall";
-    if (len > 30) return "small";
-    return "";
-  }
-
-  function updateRemain() {
-    $("remain-num").textContent = deck.length - drawIndex;
-    $("total-num").textContent = deck.length;
-  }
-
-  function startKuji() {
-    // 空文字の話題を除いてデッキを作成
-    var valid = topics.filter(function (t) { return t.text.trim().length > 0; });
-    if (valid.length === 0) return;
-    deck = shuffle(valid);
-    drawIndex = 0;
-    revealed = false;
-    isFlipping = false;
-
-    $("draw-view").style.display = "flex";
-    $("finish-view").style.display = "none";
-    $("btn-next").style.display = "none";
-    $("btn-restart").style.display = "none";
-    $("tap-hint").textContent = "カードをタップしてめくる";
-    $("kuji-stage").classList.remove("flipped");
-    $("kuji-topic").textContent = "";
-    updateRemain();
-    showScreen("kuji");
-  }
-
-  // カードをタップ → めくって話題を表示
-  function flipReveal() {
-    if (isFlipping || revealed) return;
-    if (drawIndex >= deck.length) return;
-
-    isFlipping = true;
-    var topic = deck[drawIndex];
-    var topicEl = $("kuji-topic");
-    topicEl.textContent = topic.text;
-    topicEl.className = "kuji-topic " + topicSizeClass(topic.text);
-
-    var stage = $("kuji-stage");
-    stage.classList.add("flipped");
-    $("tap-hint").textContent = "";
-
-    onFlipEnd(function () {
-      isFlipping = false;
-      revealed = true;
-      drawIndex++;
-      updateRemain();
-      $("btn-next").style.display = "block";
+      li.append(no, inp, del);
+      el.list.appendChild(li);
     });
   }
 
-  // 「次を引く」 → 裏面に戻す（残り0なら終了画面）
-  function nextCard() {
-    if (isFlipping) return;
-
-    if (drawIndex >= deck.length) {
-      // すべて引き終わった
-      $("draw-view").style.display = "none";
-      $("finish-view").style.display = "flex";
-      $("btn-next").style.display = "none";
-      $("btn-restart").style.display = "block";
-      return;
-    }
-
-    isFlipping = true;
-    revealed = false;
-    $("btn-next").style.display = "none";
-    var stage = $("kuji-stage");
-    stage.classList.remove("flipped");
-
-    onFlipEnd(function () {
-      $("kuji-topic").textContent = ""; // 裏に戻ってから内容を消す
-      isFlipping = false;
-      $("tap-hint").textContent = "カードをタップしてめくる";
+  // 履歴
+  el.hist.innerHTML = "";
+  if(drawn.length === 0){
+    const p = document.createElement("li");
+    p.className = "empty"; p.textContent = "まだ引いていません。";
+    el.hist.appendChild(p);
+  }else{
+    drawn.forEach((t,i)=>{
+      const li = document.createElement("li");
+      const n = document.createElement("span");
+      n.className = "n"; n.textContent = (i+1);
+      const s = document.createElement("span"); s.textContent = t;
+      li.append(n,s);
+      el.hist.appendChild(li);
     });
   }
 
-  // transitionend + 保険タイマーでアニメ完了を検知
-  function onFlipEnd(callback) {
-    var inner = document.querySelector("#kuji-stage .kuji-inner");
-    var done = false;
-    var fire = function () {
-      if (done) return;
-      done = true;
-      inner.removeEventListener("transitionend", fire);
-      callback();
-    };
-    inner.addEventListener("transitionend", fire);
-    setTimeout(fire, 800); // 保険
+  // 内容が変わったら保存を予約
+  if(typeof schedulePush === "function") schedulePush();
+}
+
+function registerThemes(mode){
+  const {items, dup} = parseLines(el.input.value);
+  if(items.length === 0){
+    setNotice("登録できる行がありません。1行に1テーマで入力してください。", true);
+    return;
+  }
+  let dupExisting = 0;
+  if(mode === "replace"){
+    themes = items;
+    drawn = [];
+  }else{
+    items.forEach(t=>{
+      if(themes.includes(t)) dupExisting++;
+      else themes.push(t);
+    });
+  }
+  let msg = items.length - dupExisting + "件のテーマを登録しました。";
+  const skipped = dup + dupExisting;
+  if(skipped > 0) msg += " " + skipped + "件を重複として除外しました。";
+  if(mode === "replace") msg += " 履歴もリセットしました。";
+  setNotice(msg);
+  el.input.value = "";
+  resetStage();
+  render();
+}
+
+/* ============================================================
+   4. 文字サイズの自動調整
+   ============================================================ */
+function quickSize(text){
+  const len = [...text].length;
+  if(len <=  6) return 9.0;
+  if(len <= 10) return 7.4;
+  if(len <= 14) return 6.2;
+  if(len <= 20) return 5.0;
+  if(len <= 30) return 4.0;
+  if(len <= 44) return 3.2;
+  if(len <= 64) return 2.6;
+  return 2.1;
+}
+// 実際の折り返し位置を調べ、行数と最終行の文字数を返す
+function measureLines(node){
+  const t = node.firstChild;
+  if(!t || t.nodeType !== 3) return {lines:1, last:0};
+  const s = t.textContent;
+  const range = document.createRange();
+  let lastTop = null, lines = 0, count = 0;
+  for(let i = 0; i < s.length; i++){
+    if(/\s/.test(s[i])) continue;
+    range.setStart(t, i); range.setEnd(t, i + 1);
+    const r = range.getBoundingClientRect();
+    if(!r.height) continue;
+    const top = Math.round(r.top);
+    if(lastTop === null || Math.abs(top - lastTop) > 2){ lastTop = top; lines++; count = 1; }
+    else count++;
+  }
+  return {lines: Math.max(lines,1), last: count};
+}
+
+function setText(text, precise){
+  el.themeText.textContent = text;
+  let size = quickSize(text);
+  if(window.innerWidth < 760) size *= 1.55;   // 狭い画面では相対的に大きく
+  el.themeText.style.fontSize = size + "vw";
+  if(!precise) return;
+
+  // はみ出す場合は収まるまで縮める
+  let guard = 0;
+  while(guard < 60 &&
+        (el.themeBox.scrollHeight > el.themeBox.clientHeight + 1 ||
+         el.themeText.scrollWidth > el.themeBox.clientWidth + 1)){
+    size *= 0.95;
+    if(size < 0.8) break;
+    el.themeText.style.fontSize = size + "vw";
+    guard++;
   }
 
-  /* ═══════════ イベント ═══════════ */
+  // 最終行が1文字だけになる（ぶら下がり）状態を解消する
+  let g2 = 0;
+  while(g2 < 20){
+    const m = measureLines(el.themeText);
+    if(m.lines <= 1 || m.last >= 2) break;
+    size *= 0.96;
+    if(size < 0.8) break;
+    el.themeText.style.fontSize = size + "vw";
+    g2++;
+  }
+}
 
-  // 画面1 → 画面2
-  $("btn-parse").addEventListener("click", function () {
-    var raw = $("paste-area").value;
-    var err = $("paste-error");
-    if (!raw.trim()) {
-      err.textContent = "トーク内容を貼り付けてください";
-      return;
+/* ============================================================
+   5. 効果音（Web Audio。音声ファイルは使いません）
+   ============================================================ */
+let actx = null;
+function beep(freq, dur, vol){
+  if(!el.optSound.checked) return;
+  try{
+    if(!actx) actx = new (window.AudioContext || window.webkitAudioContext)();
+    const o = actx.createOscillator(), g = actx.createGain();
+    o.type = "triangle"; o.frequency.value = freq;
+    g.gain.setValueAtTime(vol, actx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.0001, actx.currentTime + dur);
+    o.connect(g); g.connect(actx.destination);
+    o.start(); o.stop(actx.currentTime + dur);
+  }catch(e){ /* 音が出せない環境では無視 */ }
+}
+
+/* ============================================================
+   6. 抽選
+   ============================================================ */
+function resetStage(){
+  el.seal.classList.remove("on");
+  el.fuda.classList.remove("decided");
+  el.themeText.classList.remove("pop");
+  el.themeText.classList.add("idle");
+  setText(themes.length ? "スタートを押してください" : "テーマを登録してください", true);
+  el.start.textContent = "スタート";
+  el.start.disabled = false;
+  el.stage.dataset.hint = "画面またはスペースキーでスタート";
+  lastShown = null;
+}
+
+function startDraw(){
+  if(spinning) return;
+
+  if(themes.length === 0){
+    el.themeText.classList.add("idle");
+    setText("テーマを登録してください", true);
+    setNotice("テーマが0件です。まず入力して登録してください。", true);
+    openDrawer(); el.input.focus();
+    return;
+  }
+  const pool = candidates();
+  if(pool.length === 0){
+    el.themeText.classList.remove("idle");
+    el.seal.classList.remove("on");
+    setText("全テーマ終了", true);
+    el.stage.dataset.hint = "「履歴と除外をリセット」で最初から引けます";
+    el.start.disabled = true;
+    el.start.textContent = "全テーマ終了";
+    return;
+  }
+
+  // 結果を先に公平に決める（Math.random による均等抽選）
+  const result = pool[Math.floor(Math.random() * pool.length)];
+
+  spinning = true;
+  closeDrawer();                       // 抽選中は設定パネルを隠す
+  el.start.disabled = true;
+  el.start.textContent = "抽選中…";
+  el.seal.classList.remove("on");
+  el.fuda.classList.remove("decided");
+  el.themeText.classList.remove("idle","pop");
+  el.fuda.classList.add("spinning");
+  el.stage.dataset.hint = "";
+
+  const duration = 3000 + Math.random() * 1000;      // 3〜4秒
+  const fast     = 60   + Math.random() * 20;        // 開始間隔 60〜80ms
+  const slow     = 300  + Math.random() * 200;       // 終盤間隔 300〜500ms
+  const t0 = performance.now();
+
+  function flashOne(avoid){
+    let pick;
+    if(pool.length === 1){
+      pick = pool[0];
+    }else{
+      let guard = 0;
+      do{ pick = pool[Math.floor(Math.random() * pool.length)]; guard++; }
+      while(guard < 24 && (pick === lastShown || pick === avoid));
     }
-    err.textContent = "";
-    topics = extractTopics(raw);
-    renderEditList();
-    showScreen("edit");
-  });
+    lastShown = pick;
+    setText(pick, false);
+    el.themeText.classList.remove("flick");
+    void el.themeText.offsetWidth;
+    el.themeText.classList.add("flick");
+  }
 
-  // 画面2：手動追加
-  $("btn-add").addEventListener("click", function () {
-    topics.push({ text: "", sender: "手動追加" });
-    renderEditList();
-    // 追加したカードにフォーカス
-    var texts = document.querySelectorAll("#card-list .text");
-    if (texts.le
+  function tick(){
+    const t = Math.min(1, (performance.now() - t0) / duration);
+    if(t >= 1){ decide(result); return; }
+    // 残り時間が少ないときは、最後の1コマに結果が出ないようにしておく
+    flashOne(t > 0.9 ? result : null);
+    beep(1200 - 500 * t, 0.02, 0.05);
+    const wait = fast + (slow - fast) * Math.pow(t, 2.2);   // だんだん遅くなる
+    timer = setTimeout(tick, wait);
+  }
+  tick();
+}
+
+function decide(result){
+  clearTimeout(timer);
+  timer = null;
+  spinning = false;
+  el.fuda.classList.remove("spinning");
+  el.fuda.classList.add("decided");
+
+  el.themeText.classList.remove("flick");
+  setText(result, true);
+  void el.themeText.offsetWidth;
+  el.themeText.classList.add("pop");
+  el.seal.classList.add("on");
+
+  beep(784, 0.14, 0.11);
+  setTimeout(()=>beep(1175, 0.3, 0.09), 120);
+
+  drawn.push(result);
+  render();
+
+  el.start.disabled = false;
+  el.start.textContent = "もう一度";
+  const left = candidates().length;
+  el.stage.dataset.hint = (el.optExclude.checked && left === 0)
+    ? "これで全テーマ終了です"
+    : "画面またはスペースキーでもう一度";
+}
+
+/* ============================================================
+   7. ドロワーとイベント
+   ============================================================ */
+function openDrawer(){
+  el.drawer.classList.add("open");
+  el.scrim.classList.add("on");
+}
+function closeDrawer(){
+  el.drawer.classList.remove("open");
+  el.scrim.classList.remove("on");
+}
+
+$("btnStart").addEventListener("click", startDraw);
+el.stage.addEventListener("click", startDraw);
+$("btnSettings").addEventListener("click", ()=>{
+  el.drawer.classList.contains("open") ? closeDrawer() : openDrawer();
+});
+$("btnClose").addEventListener("click", closeDrawer);
+el.scrim.addEventListener("click", closeDrawer);
+
+$("btnReplace").addEventListener("click", ()=>registerThemes("replace"));
+$("btnAppend").addEventListener("click", ()=>registerThemes("append"));
+$("btnClearInput").addEventListener("click", ()=>{
+  el.input.value = ""; setNotice(""); el.input.focus();
+});
+$("btnDeleteAll").addEventListener("click", ()=>{
+  if(themes.length === 0){ setNotice("削除するテーマがありません。", true); return; }
+  if(!confirm("登録済みのテーマをすべて削除します。よろしいですか？")) return;
+  themes = []; drawn = [];
+  render(); resetStage();
+  setNotice("すべて削除しました。");
+});
+$("btnClearHist").addEventListener("click", ()=>{
+  drawn = []; render(); resetStage();
+  setNotice("履歴を消しました。");
+});
+$("btnReset").addEventListener("click", ()=>{
+  drawn = []; render(); resetStage();
+});
+$("btnFull").addEventListener("click", ()=>{
+  try{
+    if(document.fullscreenElement) document.exitFullscreen()?.catch?.(()=>{});
+    else document.documentElement.requestFullscreen?.()?.catch?.(()=>{});
+  }catch(e){ /* 全画面が使えない環境では無視 */ }
+});
+el.optExclude.addEventListener("change", ()=>{
+  render();
+  if(!spinning && candidates().length > 0 && el.start.disabled === false && el.start.textContent === "全テーマ終了") resetStage();
+  if(!spinning && candidates().length > 0) el.start.disabled = false;
+});
+
+// 貼り付けた直後に件数をプレビュー
+el.input.addEventListener("paste", ()=>{
+  setTimeout(()=>{
+    const {items, dup} = parseLines(el.input.value);
+    let m = items.length + "件のテーマを検出しました。";
+    if(dup > 0) m += " （重複 " + dup + "件は除外されます）";
+    setNotice(items.length ? m : "テーマを検出できませんでした。", !items.length);
+  }, 0);
+});
+el.input.addEventListener("input", ()=>{
+  if(!el.input.value.trim()) setNotice("");
+});
+
+// スペースキーでスタート（入力中は除く）
+document.addEventListener("keydown", e=>{
+  const tag = (e.target.tagName || "").toLowerCase();
+  if(tag === "textarea" || tag === "input"){
+    if(e.key === "Escape") closeDrawer();
+    return;
+  }
+  if(e.code === "Space" || e.key === " "){ e.preventDefault(); startDraw(); }
+  if(e.key === "Escape") closeDrawer();
+});
+
+// 画面サイズが変わったら決定表示を再フィット
+let rz = null;
+window.addEventListener("resize", ()=>{
+  clearTimeout(rz);
+  rz = setTimeout(()=>{ if(!spinning) setText(el.themeText.textContent, true); }, 120);
+});
+
+/* ============================================================
+   8. 保存
+   テーマ・履歴・除外設定をブラウザ内に保存します。
+   次に同じ端末の同じブラウザで開いたとき、続きから使えます。
+   ============================================================ */
+const SYNC_KEY  = "kuji:data";
+const PULL_MS   = 6000;          // 別タブの変更を取りに行く間隔
+let syncOn      = false;
+let backend     = null;          // "local" | null
+let pushTimer   = null;
+let pullTimer   = null;
+let applying    = false;         // 受信内容を反映している最中
+let stamp       = 0;             // このページが持つデータの更新時刻
+
+function detectBackend(){
+  try{ localStorage.setItem("__k","1"); localStorage.removeItem("__k"); return "local"; }
+  catch(e){ return null; }
+}
+
+function syncSay(msg, warn){
+  el.syncStatus.textContent = msg || "";
+  el.syncStatus.classList.toggle("warn", !!warn);
+}
+function nowLabel(){
+  const d = new Date();
+  return ("0"+d.getHours()).slice(-2)+":"+("0"+d.getMinutes()).slice(-2);
+}
+
+async function readRemote(){
+  try{
+    if(backend === "local"){
+      const v = localStorage.getItem(SYNC_KEY);
+      return v ? JSON.parse(v) : null;
+    }
+  }catch(e){ return null; }
+  return null;
+}
+
+async function writeRemote(){
+  const payload = {
+    themes: themes,
+    drawn: drawn,
+    exclude: el.optExclude.checked,
+    updatedAt: Date.now()
+  };
+  stamp = payload.updatedAt;
+  const text = JSON.stringify(payload);
+  try{
+    if(backend === "local") localStorage.setItem(SYNC_KEY, text);
+    else return false;
+    return true;
+  }catch(e){ return false; }
+}
+
+function schedulePush(){
+  if(!syncOn || applying || !backend) return;
+  clearTimeout(pushTimer);
+  pushTimer = setTimeout(async ()=>{
+    const ok = await writeRemote();
+    syncSay(ok ? "保存しました（"+nowLabel()+"）"
+               : "保存できませんでした。ブラウザの設定を確認してください。", !ok);
+  }, 800);
+}
+
+function applyRemote(data){
+  applying = true;
+  themes = Array.isArray(data.themes) ? data.themes.slice() : [];
+  drawn  = Array.isArray(data.drawn)  ? data.drawn.slice()  : [];
+  if(typeof data.exclude === "boolean") el.optExclude.checked = data.exclude;
+  stamp = data.updatedAt || Date.now();
+  render();
+  applying = false;
+  if(!spinning) resetStage();
+}
+
+async function pullOnce(silent){
+  if(!syncOn || !backend || spinning) return;
+  const data = await readRemote();
+  if(!data){ if(!silent) syncSay("保存されたくじはまだありません。"); return; }
+  if((data.updatedAt || 0) > stamp){
+    applyRemote(data);
+    syncSay("別のタブの変更を読み込みました（"+nowLabel()+"）");
+  }else if(!silent){
+    syncSay("最新の状態です（"+nowLabel()+"）");
+  }
+}
+
+function startPull(){
+  clearInterval(pullTimer);
+  pullTimer = setInterval(()=>pullOnce(true), PULL_MS);
+}
+function stopPull(){ clearInterval(pullTimer); pullTimer = null; }
+
+async function setSync(on){
+  if(on && !backend){
+    el.optSync.checked = false;
+    syncSay("この環境では保存できません。", true);
+    return;
+  }
+  syncOn = on;
+  if(!on){
+    stopPull();
+    clearTimeout(pushTimer);
+    syncSay("保存をオフにしました。この後の変更は残りません。");
+    try{ localStorage.setItem("kuji:syncOn","0"); }catch(e){}
+    return;
+  }
+  try{ localStorage.setItem("kuji:syncOn","1"); }catch(e){}
+
+  const data = await readRemote();
+  if(data && Array.isArray(data.themes) && data.themes.length){
+    const ok = confirm(
+      "保存済みのくじが見つかりました（テーマ "+data.themes.length+"件）。\n\n" +
+      "「OK」で保存済みの内容を読み込みます。\n" +
+      "「キャンセル」でいまの内容を保存し、保存済みの内容を上書きします。");
+    if(ok){
+      applyRemote(data);
+      syncSay("保存済みのくじを読み込みました（"+nowLabel()+"）");
+    }else{
+      const w = await writeRemote();
+      syncSay(w ? "いまの内容で上書きしました（"+nowLabel()+"）" : "保存できませんでした。", !w);
+    }
+  }else{
+    const w = await writeRemote();
+    syncSay(w ? "保存をオンにしました（"+nowLabel()+"）" : "保存できませんでした。", !w);
+  }
+  startPull();
+}
+
+function initSync(){
+  backend = detectBackend();
+  if(backend === "local"){
+    el.syncNote.textContent =
+      "テーマと履歴をこのブラウザ内に保存します。次に同じ端末で開いたとき、続きから使えます（端末をまたぐ同期はしません）。";
+  }else{
+    el.syncNote.textContent = "この環境では保存できません。";
+    el.optSync.disabled = true;
+  }
+  let saved = null;
+  try{ saved = localStorage.getItem("kuji:syncOn"); }catch(e){}
+  if(saved === "1" && backend){ el.optSync.checked = true; setSync(true); }
+}
+
+el.optSync.addEventListener("change", ()=>setSync(el.optSync.checked));
+$("btnSyncNow").addEventListener("click", async ()=>{
+  if(!el.optSync.checked){ syncSay("先に保存をオンにしてください。", true); return; }
+  await pullOnce(false);
+  const ok = await writeRemote();
+  if(ok) syncSay("保存しました（"+nowLabel()+"）");
+});
+
+/* 起動 */
+render();
+resetStage();
+initSync();
+</script>
+</body>
+</html>
