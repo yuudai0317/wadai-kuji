@@ -1,0 +1,15 @@
+# GitHub と連携すると、このファイルの設定でそのまま公開できます。
+# ビルド工程はありません（index.html をそのまま配信します）。
+[build]
+  publish = "."
+  command = ""
+
+[functions]
+  directory = "netlify/functions"
+  node_bundler = "esbuild"
+
+# くじの同期APIはキャッシュさせない
+[[headers]]
+  for = "/api/*"
+  [headers.values]
+    Cache-Control = "no-store"
