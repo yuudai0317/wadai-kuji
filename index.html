@@ -393,12 +393,13 @@ textarea::placeholder{color:#527069;}
       </label>
       <label class="toggle" id="syncToggleRow">
         <input type="checkbox" id="optSync">
-        <span class="tx">くじの内容を保存する
+        <span class="tx"><span id="syncTitle">くじの内容を保存する</span>
           <small id="syncNote">テーマと履歴を保存します。</small></span>
       </label>
       <p class="auto" id="syncAuto" hidden>
-        <b>自動で同期しています</b>
-        このリンクを開いた全員が同じテーマ・履歴を見ています。誰かがテーマを変えたりくじを引いたりすると、数秒で全員の画面に反映されます。操作は不要です。
+        <b>最初からオンになっています</b>
+        このリンクを開いた全員が同じテーマ・履歴を見ています。誰かがテーマを変えたりくじを引いたりすると、数秒で全員の画面に反映されます。通常は操作不要です。
+        オフにすると、この端末だけで操作できます（他の端末には反映されません）。
       </p>
       <div class="row">
         <button class="btn ghost" id="btnSyncNow">今すぐ同期</button>
@@ -454,7 +455,8 @@ const el = {
   drawer:$("drawer"), scrim:$("scrim"),
   optExclude:$("optExclude"), optSound:$("optSound"),
   optSync:$("optSync"), syncNote:$("syncNote"), syncStatus:$("syncStatus"),
-  syncToggleRow:$("syncToggleRow"), syncAuto:$("syncAuto"), syncBadge:$("syncBadge")
+  syncToggleRow:$("syncToggleRow"), syncAuto:$("syncAuto"), syncBadge:$("syncBadge"),
+  syncTitle:$("syncTitle")
 };
 
 /* ============================================================
@@ -870,6 +872,7 @@ window.addEventListener("resize", ()=>{
 const API     = "/api/kuji";
 const PULL_MS = 4000;            // 他の人の変更を取りに行く間隔
 const LKEY    = "kuji:data";     // 端末内保存のキー
+const SHAREKEY = "kuji:shareOn"; // 共有モードでのスイッチ状態（端末ごと）
 
 let syncOn    = false;
 let autoSync  = false;           // 公開URLで開いたときは常時オン
@@ -938,8 +941,23 @@ async function writeRemote(){
   return false;
 }
 
+function localCopy(){
+  const payload = { themes:themes, drawn:drawn, exclude:el.optExclude.checked, updatedAt:Date.now() };
+  try{ localStorage.setItem(LKEY, JSON.stringify(payload)); }catch(e){}
+}
+function readLocalCopy(){
+  try{ const v = localStorage.getItem(LKEY); return v ? JSON.parse(v) : null; }catch(e){ return null; }
+}
+function dropLocalCopy(){ try{ localStorage.removeItem(LKEY); }catch(e){} }
+
 function schedulePush(){
-  if(!syncOn || applying || !backend) return;
+  if(applying || !backend) return;
+  if(autoSync && !syncOn){            // 共有オフ：他の端末には送らず、この端末にだけ残す
+    clearTimeout(pushTimer);
+    pushTimer = setTimeout(localCopy, 800);
+    return;
+  }
+  if(!syncOn) return;
   clearTimeout(pushTimer);
   pushTimer = setTimeout(async ()=>{
     const ok = await writeRemote();
@@ -984,8 +1002,62 @@ async function pullOnce(silent){
 function startPull(){ clearInterval(pullTimer); pullTimer = setInterval(()=>pullOnce(true), PULL_MS); }
 function stopPull(){ clearInterval(pullTimer); pullTimer = null; }
 
+// 手元の内容と共有中の内容が同じかどうか
+function sameAsShared(data){
+  return JSON.stringify(data.themes || []) === JSON.stringify(themes)
+      && JSON.stringify(data.drawn  || []) === JSON.stringify(drawn);
+}
+
+/* --- 公開URLでのスイッチ（タブレットとスマホの併用など） --- */
+async function setShare(on){
+  setPref(SHAREKEY, on ? "1" : "0");
+
+  if(!on){
+    syncOn = false;
+    stopPull(); clearTimeout(pushTimer);
+    localCopy();                      // いま画面にある内容をこの端末に残す
+    setBadge(false, "同期オフ");
+    syncSay("この端末だけで操作します。ここでの変更は他の端末に反映されません。");
+    return;
+  }
+
+  syncOn = true;
+  dropLocalCopy();                    // 共有に戻るので、端末内の控えは持ち越さない
+  const data = await readRemote();
+  if(data === undefined){
+    setBadge(false, "接続待ち");
+    syncSay("接続できませんでした。接続が戻り次第、自動で同期します。", true);
+    startPull();
+    return;
+  }
+
+  if(data && Array.isArray(data.themes) && data.themes.length && !sameAsShared(data)){
+    // オフの間に内容が食い違った場合だけ、どちらに合わせるかを確認する
+    const ok = confirm(
+      "共有中のくじがあります（テーマ "+data.themes.length+"件）。\n\n" +
+      "「OK」で共有中の内容に合わせます。\n" +
+      "「キャンセル」でこの端末の内容を全員に反映します。");
+    if(ok){
+      applyRemote(data);
+      syncSay("共有中のくじに合わせました（"+nowLabel()+"）");
+    }else{
+      const w = await writeRemote();
+      syncSay(w ? "この端末の内容を全員に反映しました（"+nowLabel()+"）" : "保存できませんでした。", !w);
+    }
+  }else if(data && Array.isArray(data.themes) && data.themes.length){
+    stamp = data.updatedAt || stamp;   // 同じ内容なので読み直さない
+    syncSay("同期を再開しました（"+nowLabel()+"）");
+  }else{
+    const w = await writeRemote();
+    syncSay(w ? "同期を再開しました（"+nowLabel()+"）" : "保存できませんでした。", !w);
+  }
+
+  setBadge(true, "同期中");
+  startPull();
+}
+
 async function setSync(on){
-  if(autoSync) return;                 // 公開URLでは常時オンなので操作を受け付けない
+  if(autoSync) return setShare(on);    // 公開URLでは共有のオン・オフとして扱う
   if(on && !backend){
     el.optSync.checked = false;
     syncSay("この環境では保存できないため、同期は使えません。", true);
@@ -1060,18 +1132,36 @@ async function initSync(){
   backend = await detectBackend();
 
   if(backend === "server"){
-    // 公開URLとして開かれた場合は、スイッチを押さなくても全員が同期される
+    // 公開URLとして開かれた場合は、スイッチを押さなくても最初から同期される。
+    // スイッチは残してあり、オフにするとその端末だけ切り離せる。
     autoSync = true;
-    syncOn   = true;
-    el.optSync.checked = true;
-    el.syncToggleRow.hidden = true;
+    el.syncTitle.textContent = "くじをみんなと同期する";
+    el.syncNote.textContent  =
+      "オンの間、このリンクを開いた全員と同じテーマ・履歴になります。手持ちの端末を持ち替えても続きから使えます。";
     el.syncAuto.hidden = false;
-    setBadge(true, "同期中");
-    await bootstrapShared();
-    startPull();
+
     // 画面に戻ってきたときは、待たずに最新を取りに行く
     document.addEventListener("visibilitychange", ()=>{ if(!document.hidden) pullOnce(true); });
     window.addEventListener("focus", ()=>pullOnce(true));
+
+    if(pref(SHAREKEY, "1") === "0"){        // この端末で明示的にオフにしていた場合
+      el.optSync.checked = false;
+      syncOn = false;
+      const copy = readLocalCopy();         // オフ中に編集した内容を復元する
+      if(copy && Array.isArray(copy.themes) && copy.themes.length){
+        applyRemote(copy);
+        stamp = 0;                          // 同期を再開したら共有側を読み直す
+      }
+      setBadge(false, "同期オフ");
+      syncSay("この端末は同期していません。上のスイッチでオンにできます。");
+      return;
+    }
+
+    el.optSync.checked = true;
+    syncOn = true;
+    setBadge(true, "同期中");
+    await bootstrapShared();
+    startPull();
     return;
   }
 
@@ -1092,7 +1182,7 @@ async function initSync(){
 
 el.optSync.addEventListener("change", ()=>setSync(el.optSync.checked));
 $("btnSyncNow").addEventListener("click", async ()=>{
-  if(!autoSync && !el.optSync.checked){ syncSay("先に保存をオンにしてください。", true); return; }
+  if(!el.optSync.checked){ syncSay("先に上のスイッチをオンにしてください。", true); return; }
   await pullOnce(false);
   const ok = await writeRemote();
   if(ok) syncSay("同期しました（"+nowLabel()+"）");
