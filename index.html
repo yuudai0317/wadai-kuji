@@ -3,1197 +3,896 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>トークテーマくじ引き｜交流会</title>
+<title>話題のくじ ｜ 雑談が続く500の問いかけ</title>
 <style>
-/* ============================================================
-   配色・タイポトークン
-   ============================================================ */
 :root{
-  --ink:        #0C2523;  /* 背景（深い墨緑） */
-  --ink-2:      #10322E;  /* パネル */
-  --ink-3:      #1B4640;  /* 罫線・境界 */
-  --paper:      #EDE6D6;  /* 札の紙色 */
-  --paper-2:    #E2D9C4;  /* 札の紙色（影側） */
-  --text-dark:  #14302C;  /* 札の上の文字 */
-  --text-light: #E8EFEC;  /* 暗い背景の上の文字 */
-  --muted:      #7E9B95;  /* 補助文字 */
-  --brass:      #D9A93F;  /* アクセント（真鍮） */
-  --vermilion:  #C0402B;  /* 朱（決定印） */
-
-  --mincho: "Hiragino Mincho ProN","Hiragino Mincho Pro","Yu Mincho","YuMincho","Noto Serif JP","Source Han Serif JP",serif;
-  --gothic: system-ui,-apple-system,"Hiragino Sans","Hiragino Kaku Gothic ProN","Noto Sans JP","Yu Gothic","YuGothic",sans-serif;
+  --ink:#241812;
+  --ink-2:#3A2A1E;
+  --leather:#4A3428;
+  --leather-hi:#5A4132;
+  --cream:#F5EFE6;
+  --muted:#A88E76;
+  --gold:#C9A227;
+  --gold-hi:#E7CE84;
+  --mincho:"Hiragino Mincho ProN","Yu Mincho","YuMincho","MS PMincho",serif;
+  --gothic:"Hiragino Sans","Yu Gothic","Meiryo",system-ui,sans-serif;
 }
-
-*{box-sizing:border-box;}
-[hidden]{display:none !important;}   /* .toggle等のdisplay指定に負けないようにする */
-html,body{height:100%;margin:0;}
+*{box-sizing:border-box}
+html,body{height:100%}
 body{
+  margin:0;
+  padding:clamp(20px,5vw,56px) clamp(16px,4vw,32px) 72px;
   background:
-    radial-gradient(120% 90% at 50% 0%, #14413A 0%, var(--ink) 62%, #071A19 100%);
-  color:var(--text-light);
+    radial-gradient(120% 80% at 50% 0%, #4A3325 0%, rgba(74,51,37,0) 60%),
+    linear-gradient(180deg,var(--ink-2) 0%, var(--ink) 100%);
+  background-attachment:fixed;
+  color:var(--cream);
   font-family:var(--gothic);
-  overflow:hidden;
+  -webkit-font-smoothing:antialiased;
 }
-button,input,textarea{font-family:inherit;}
-:focus-visible{outline:2px solid var(--brass);outline-offset:2px;}
+body::before{
+  content:"";position:fixed;inset:0;pointer-events:none;opacity:.05;mix-blend-mode:overlay;
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3'/></filter><rect width='160' height='160' filter='url(%23n)'/></svg>");
+}
+.stage{max-width:760px;margin:0 auto;position:relative;z-index:1}
 
-/* ============================================================
-   全体レイアウト（16:9を基本に可変）
-   ============================================================ */
-.app{
-  position:relative;
-  height:100%;
-  display:grid;
-  grid-template-rows:auto 1fr auto;
-}
-
-/* --- ヘッダ --- */
-.top{
-  display:flex;align-items:baseline;justify-content:space-between;
-  gap:16px;padding:clamp(12px,1.6vw,24px) clamp(16px,2.4vw,40px);
-}
-.brand{display:flex;align-items:baseline;gap:.6em;}
-.brand b{
+/* ---- header ---- */
+.masthead{text-align:center;margin-bottom:clamp(24px,5vw,44px)}
+.masthead h1{
   font-family:var(--mincho);font-weight:600;
-  font-size:clamp(15px,1.5vw,22px);letter-spacing:.14em;
+  font-size:clamp(28px,7vw,44px);letter-spacing:.4em;text-indent:.4em;
+  margin:0 0 14px;color:var(--cream);
 }
-.brand span{
-  font-size:clamp(10px,.85vw,12px);letter-spacing:.34em;
-  color:var(--muted);text-transform:uppercase;
-}
-/* 同期状態のバッジ（見出しの右） */
-.badge{
-  font-size:clamp(9px,.78vw,11px);letter-spacing:.18em;white-space:nowrap;
-  color:var(--brass);border:1px solid rgba(217,169,63,.45);
-  border-radius:999px;padding:.3em .9em;
-}
-.badge.off{color:#E39082;border-color:rgba(227,144,130,.45);}
-.counts{display:flex;gap:clamp(10px,1.4vw,22px);align-items:baseline;}
-.count{display:flex;align-items:baseline;gap:.4em;}
-.count i{
-  font-style:normal;font-size:clamp(9px,.8vw,11px);
-  letter-spacing:.24em;color:var(--muted);
-}
-.count b{
-  font-family:var(--mincho);font-size:clamp(17px,1.9vw,28px);
-  font-weight:600;color:var(--brass);font-variant-numeric:tabular-nums;
+.rule{display:flex;align-items:center;justify-content:center;gap:12px;color:var(--gold)}
+.rule i{display:block;width:min(120px,22vw);height:1px;background:linear-gradient(90deg,transparent,var(--gold))}
+.rule i+i{background:linear-gradient(90deg,var(--gold),transparent)}
+.rule b{font-size:9px;letter-spacing:.05em}
+.masthead p{
+  margin:14px 0 0;font-family:var(--mincho);color:var(--muted);
+  font-size:clamp(12px,3vw,14px);letter-spacing:.22em;
 }
 
-/* --- 舞台（クリックで抽選） --- */
-.stage{
-  position:relative;display:grid;place-items:center;
-  padding:0 clamp(16px,3vw,56px);cursor:pointer;min-height:0;
+/* ---- filters ---- */
+.filters{display:flex;flex-wrap:wrap;gap:7px;justify-content:center;margin-bottom:clamp(22px,4vw,34px)}
+.filters button{
+  font-family:var(--gothic);font-size:11.5px;letter-spacing:.06em;
+  color:var(--muted);background:transparent;
+  border:1px solid rgba(201,162,39,.28);border-radius:999px;
+  padding:7px 14px;cursor:pointer;transition:.25s ease;
 }
-.stage::after{ /* 押せることを示す控えめなヒント */
-  content:attr(data-hint);
-  position:absolute;bottom:0;left:50%;transform:translateX(-50%);
-  font-size:clamp(10px,.85vw,12px);letter-spacing:.22em;color:var(--muted);
-  opacity:.75;pointer-events:none;
-}
-
-/* --- 札（くじ） --- */
-.fuda{
-  position:relative;
-  width:min(84vw,1180px);
-  height:min(58vh,540px);
-  background:linear-gradient(158deg,var(--paper) 0%,var(--paper-2) 100%);
-  color:var(--text-dark);
-  clip-path:polygon(
-    12% 0%, 88% 0%, 100% 11%, 100% 89%,
-    88% 100%, 12% 100%, 0% 89%, 0% 11%);
-  box-shadow:0 26px 60px rgba(0,0,0,.5), 0 2px 0 rgba(255,255,255,.16) inset;
-  display:grid;place-items:center;
-  transition:transform .5s cubic-bezier(.16,1,.3,1), filter .5s;
-}
-.fuda::before{ /* 内側の二重罫 */
-  content:"";position:absolute;inset:clamp(12px,1.4vw,22px);
-  border:1px solid rgba(20,48,44,.28);
-  box-shadow:0 0 0 4px var(--paper) , 0 0 0 5px rgba(20,48,44,.14);
-  pointer-events:none;
-}
-.fuda.spinning{animation:hum .32s ease-in-out infinite alternate;}
-@keyframes hum{from{transform:translateY(0) rotate(-.15deg);}to{transform:translateY(-5px) rotate(.15deg);}}
-.fuda.decided{filter:drop-shadow(0 0 26px rgba(217,169,63,.5));}
-
-.themeBox{
-  position:relative;z-index:1;
-  width:calc(100% - clamp(56px,7vw,110px));
-  height:calc(100% - clamp(56px,7vw,110px));
-  display:grid;place-items:center;overflow:hidden;
-}
-.themeText{
-  font-family:var(--mincho);font-weight:600;
-  line-height:1.34;letter-spacing:.02em;text-align:center;
-  font-size:6vw; /* JSが自動調整 */
-  overflow-wrap:anywhere;word-break:normal;line-break:strict;
-  text-wrap:balance;      /* 行の長さを揃え、最終行が極端に短くならないようにする */
-  max-width:100%;
-}
-.themeText.flick{animation:flick .09s steps(2,end);}
-@keyframes flick{from{opacity:.28;transform:translateY(2px);}to{opacity:1;transform:none;}}
-.themeText.pop{animation:pop .58s cubic-bezier(.16,1,.3,1);}
-@keyframes pop{
-  0%{opacity:0;transform:scale(.86);}
-  60%{opacity:1;transform:scale(1.035);}
-  100%{opacity:1;transform:scale(1);}
-}
-.themeText.idle{color:#5C7370;font-weight:400;}
-
-/* 決定印（この画面の主役） */
-.seal{
-  position:absolute;z-index:2;
-  right:clamp(14px,2.4vw,40px);bottom:clamp(10px,2vw,32px);
-  width:clamp(64px,7.6vw,124px);aspect-ratio:1;
-  display:grid;place-items:center;
-  border:3px solid var(--vermilion);border-radius:50%;
-  color:var(--vermilion);
-  font-family:var(--mincho);font-weight:700;
-  font-size:clamp(19px,2.3vw,38px);letter-spacing:.06em;
-  opacity:0;transform:scale(2.6) rotate(-24deg);
-  mix-blend-mode:multiply;
-}
-.seal.on{animation:stamp .42s cubic-bezier(.2,1.5,.4,1) forwards;}
-@keyframes stamp{
-  0%{opacity:0;transform:scale(2.6) rotate(-24deg);}
-  70%{opacity:.95;transform:scale(.94) rotate(-8deg);}
-  100%{opacity:.9;transform:scale(1) rotate(-9deg);}
+.filters button:hover{color:var(--cream);border-color:rgba(201,162,39,.6)}
+.filters button[aria-pressed="true"]{
+  color:var(--ink);background:linear-gradient(180deg,var(--gold-hi),var(--gold));
+  border-color:var(--gold-hi);font-weight:600;
 }
 
-/* --- 操作列 --- */
-.bottom{
-  display:flex;align-items:center;justify-content:center;gap:clamp(8px,1.1vw,16px);
-  flex-wrap:wrap;padding:clamp(12px,1.8vw,28px) clamp(16px,2.4vw,40px);
+/* ---- the box ---- */
+.box{position:relative;margin-bottom:clamp(24px,4vw,34px)}
+.box-frame{
+  position:relative;overflow:hidden;
+  min-height:clamp(210px,42vw,270px);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:18px;padding:clamp(30px,6vw,48px) clamp(24px,7vw,64px);
+  background:
+    linear-gradient(160deg,var(--leather-hi) 0%,var(--leather) 45%,#3B2921 100%);
+  border:1px solid rgba(201,162,39,.34);
+  border-radius:3px;
+  box-shadow:
+    inset 0 1px 0 rgba(255,240,215,.09),
+    inset 0 0 60px rgba(0,0,0,.42),
+    0 24px 50px -22px rgba(0,0,0,.85);
 }
-.btn{
-  appearance:none;cursor:pointer;
-  background:transparent;color:var(--text-light);
-  border:1px solid var(--ink-3);border-radius:999px;
-  padding:.7em 1.5em;font-size:clamp(12px,1vw,14px);letter-spacing:.1em;
-  transition:background .18s,border-color .18s,color .18s,transform .18s;
+.box-frame::after{
+  content:"";position:absolute;inset:9px;border:1px solid rgba(201,162,39,.16);
+  border-radius:1px;pointer-events:none;
 }
-.btn:hover:not(:disabled){background:var(--ink-2);border-color:var(--brass);}
-.btn:active:not(:disabled){transform:translateY(1px);}
-.btn:disabled{opacity:.34;cursor:not-allowed;}
-.btn.primary{
-  background:var(--brass);border-color:var(--brass);color:#22190A;
-  font-weight:700;padding:.82em 2.4em;letter-spacing:.16em;
-  font-size:clamp(13px,1.15vw,17px);
-}
-.btn.primary:hover:not(:disabled){background:#E7BC55;border-color:#E7BC55;}
-a.btn{display:inline-flex;align-items:center;text-decoration:none;}
-.btn.ghost{border-color:transparent;color:var(--muted);}
-.btn.ghost:hover{color:var(--text-light);background:var(--ink-2);}
-.btn.danger{border-color:#5A2B24;color:#E39082;}
-.btn.danger:hover{background:#3A1A15;border-color:#C0402B;}
+.corner{position:absolute;width:16px;height:16px;border:1px solid var(--gold);opacity:.62;pointer-events:none}
+.corner.tl{top:16px;left:16px;border-right:0;border-bottom:0}
+.corner.tr{top:16px;right:16px;border-left:0;border-bottom:0}
+.corner.bl{bottom:16px;left:16px;border-right:0;border-top:0}
+.corner.br{bottom:16px;right:16px;border-left:0;border-top:0}
 
-/* ============================================================
-   設定パネル（右からのドロワー）
-   ============================================================ */
-.drawer{
-  position:fixed;top:0;right:0;height:100%;
-  width:min(440px,100%);
-  background:var(--ink-2);border-left:1px solid var(--ink-3);
-  box-shadow:-24px 0 60px rgba(0,0,0,.45);
-  transform:translateX(101%);transition:transform .34s cubic-bezier(.16,1,.3,1);
-  display:flex;flex-direction:column;z-index:20;
+.cat{
+  font-size:10.5px;letter-spacing:.3em;text-indent:.3em;color:var(--gold);
+  min-height:15px;opacity:.9;transition:opacity .3s;
 }
-.drawer.open{transform:none;}
-.drawer header{
-  display:flex;align-items:center;justify-content:space-between;
-  padding:20px 22px 14px;border-bottom:1px solid var(--ink-3);
+.theme{
+  font-family:var(--mincho);font-weight:500;
+  font-size:clamp(19px,5.2vw,28px);line-height:1.85;letter-spacing:.05em;
+  text-align:center;color:var(--cream);
+  text-shadow:0 2px 14px rgba(0,0,0,.45);
+  transition:filter .18s ease, opacity .18s ease;
 }
-.drawer h2{
-  margin:0;font-family:var(--mincho);font-weight:600;
-  font-size:17px;letter-spacing:.14em;
+.box-frame.is-drawing .theme{filter:blur(.6px);opacity:.72}
+.box-frame.is-drawing .cat{opacity:.45}
+.box-frame.is-settled .theme{animation:settle .7s cubic-bezier(.16,1,.3,1) both}
+@keyframes settle{
+  0%{transform:scale(.94);opacity:.4;filter:blur(3px)}
+  100%{transform:scale(1);opacity:1;filter:blur(0)}
 }
-.drawer .body{overflow-y:auto;padding:20px 22px 40px;}
-.sect{margin-bottom:30px;}
-.sect > h3{
-  margin:0 0 10px;font-size:10px;letter-spacing:.26em;
-  color:var(--brass);font-weight:600;
+.glow{
+  position:absolute;left:50%;top:50%;width:120px;height:120px;margin:-60px 0 0 -60px;
+  border:1px solid var(--gold-hi);border-radius:50%;opacity:0;pointer-events:none;
 }
-.hint{margin:0 0 10px;font-size:12px;line-height:1.75;color:var(--muted);}
-textarea{
-  width:100%;min-height:150px;resize:vertical;
-  background:#0A2220;color:var(--text-light);
-  border:1px solid var(--ink-3);border-radius:6px;
-  padding:12px 13px;font-size:13.5px;line-height:1.85;
+.box-frame.is-settled .glow{animation:burst .95s cubic-bezier(.2,.8,.2,1) both}
+@keyframes burst{
+  0%{transform:scale(.2);opacity:.9;box-shadow:0 0 60px 20px rgba(231,206,132,.35)}
+  100%{transform:scale(5.5);opacity:0;box-shadow:0 0 0 0 rgba(231,206,132,0)}
 }
-textarea::placeholder{color:#527069;}
-.row{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;}
-.notice{
-  margin-top:10px;font-size:12px;line-height:1.7;color:var(--brass);
-  min-height:1.7em;
-}
-.notice.warn{color:#E39082;}
-
-/* 自動同期の説明（サーバー上で開いたとき） */
-.auto{
-  margin:0;padding:12px 13px;border-radius:6px;
-  background:#0A2220;border:1px solid var(--ink-3);
-  font-size:12.5px;line-height:1.75;color:var(--muted);
-}
-.auto b{display:block;margin-bottom:4px;color:var(--brass);font-size:13px;letter-spacing:.06em;}
-
-/* テーマ一覧（各行がそのまま編集欄） */
-.list{list-style:none;margin:0;padding:0;}
-.list li{
-  display:flex;align-items:center;gap:8px;
-  padding:5px 0;border-bottom:1px dashed var(--ink-3);
-}
-.list .no{
-  flex:0 0 2.1em;text-align:right;
-  font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums;
-}
-.list input{
-  flex:1;min-width:0;background:transparent;color:var(--text-light);
-  border:1px solid transparent;border-radius:4px;
-  padding:6px 8px;font-size:13.5px;
-}
-.list input:hover{border-color:var(--ink-3);}
-.list input:focus{border-color:var(--brass);background:#0A2220;}
-.list input.done{color:#5F817B;text-decoration:line-through;}
-.del{
-  flex:0 0 auto;appearance:none;cursor:pointer;
-  background:transparent;border:1px solid var(--ink-3);border-radius:4px;
-  color:var(--muted);width:28px;height:28px;font-size:14px;line-height:1;
-}
-.del:hover{color:#E39082;border-color:#C0402B;}
-.empty{font-size:12.5px;color:var(--muted);padding:8px 0;}
-
-/* トグル */
-.toggle{
-  display:flex;align-items:flex-start;gap:11px;
-  padding:11px 0;border-bottom:1px solid var(--ink-3);cursor:pointer;
-}
-.toggle:last-child{border-bottom:none;}
-.toggle input{
-  appearance:none;margin:2px 0 0;flex:0 0 auto;
-  width:38px;height:21px;border-radius:999px;
-  background:#0A2220;border:1px solid var(--ink-3);
-  position:relative;cursor:pointer;transition:background .2s,border-color .2s;
-}
-.toggle input::after{
-  content:"";position:absolute;top:2px;left:2px;
-  width:15px;height:15px;border-radius:50%;
-  background:var(--muted);transition:transform .2s,background .2s;
-}
-.toggle input:checked{background:#3D3213;border-color:var(--brass);}
-.toggle input:checked::after{transform:translateX(17px);background:var(--brass);}
-.toggle .tx{font-size:13.5px;line-height:1.55;}
-.toggle .tx small{display:block;font-size:11.5px;color:var(--muted);margin-top:3px;}
-
-/* 履歴 */
-.hist{list-style:none;margin:0;padding:0;}
-.hist li{
-  display:flex;gap:10px;padding:7px 0;font-size:13px;
-  border-bottom:1px dashed var(--ink-3);
-}
-.hist .n{
-  flex:0 0 1.9em;color:var(--brass);font-variant-numeric:tabular-nums;font-size:11.5px;
+.spine{
+  position:absolute;top:50%;right:-13px;transform:translateY(-50%);
+  writing-mode:vertical-rl;font-family:var(--mincho);
+  font-size:11px;letter-spacing:.42em;
+  color:var(--ink);background:linear-gradient(180deg,var(--gold-hi),var(--gold));
+  padding:14px 5px;border-radius:1px;
+  box-shadow:0 6px 16px -6px rgba(0,0,0,.8);
 }
 
-.scrim{
-  position:fixed;inset:0;background:rgba(4,16,15,.6);
-  opacity:0;pointer-events:none;transition:opacity .3s;z-index:15;
+/* ---- action ---- */
+.action{display:flex;flex-direction:column;align-items:center;gap:14px}
+.draw{
+  font-family:var(--mincho);font-size:clamp(15px,3.6vw,17px);letter-spacing:.34em;text-indent:.34em;
+  color:var(--ink);background:linear-gradient(180deg,var(--gold-hi) 0%,var(--gold) 60%,#A9831C 100%);
+  border:0;border-radius:2px;padding:16px clamp(34px,9vw,60px);cursor:pointer;
+  box-shadow:0 12px 26px -14px rgba(201,162,39,.85), inset 0 1px 0 rgba(255,255,255,.4);
+  transition:transform .18s ease, box-shadow .18s ease, filter .18s ease;
 }
-.scrim.on{opacity:1;pointer-events:auto;}
+.draw:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 18px 32px -14px rgba(201,162,39,.95), inset 0 1px 0 rgba(255,255,255,.4)}
+.draw:active:not(:disabled){transform:translateY(0)}
+.draw:disabled{filter:saturate(.35) brightness(.72);cursor:not-allowed}
+.meta{font-size:11px;letter-spacing:.16em;color:var(--muted)}
+.meta em{font-style:normal;color:var(--gold-hi)}
 
-/* ============================================================
-   狭い画面
-   ============================================================ */
-@media (max-width:760px){
-  .fuda{width:92vw;height:min(52vh,420px);}
-  .themeText{line-height:1.42;}
-  .top{flex-direction:column;gap:8px;align-items:flex-start;}
-  .btn{padding:.68em 1.15em;}
-  .btn.primary{padding:.8em 1.8em;}
-  .stage::after{display:none;}
+/* ---- history ---- */
+.history{margin-top:clamp(40px,8vw,64px)}
+.history h2{
+  font-family:var(--mincho);font-weight:500;font-size:12px;letter-spacing:.34em;text-indent:.34em;
+  color:var(--muted);text-align:center;margin:0 0 18px;
 }
+.history ol{list-style:none;margin:0;padding:0;border-top:1px solid rgba(201,162,39,.14)}
+.history li{
+  display:flex;gap:14px;align-items:baseline;
+  padding:11px 4px;border-bottom:1px solid rgba(201,162,39,.14);
+  font-size:13px;line-height:1.7;color:rgba(245,239,230,.82);
+  animation:fadein .45s ease both;
+}
+@keyframes fadein{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
+.history .no{font-family:var(--mincho);font-size:11px;color:var(--gold);opacity:.75;min-width:22px}
+.history .tag{font-size:10px;color:var(--muted);letter-spacing:.08em;white-space:nowrap}
+.history .empty{color:var(--muted);font-size:12px;justify-content:center;border-bottom:0}
+
+:focus-visible{outline:2px solid var(--gold-hi);outline-offset:3px}
 @media (prefers-reduced-motion:reduce){
-  .fuda.spinning{animation:none;}
-  .themeText.flick,.themeText.pop,.seal.on{animation-duration:.01s;}
-  .seal.on{opacity:.9;transform:scale(1) rotate(-9deg);}
-  *{transition-duration:.01s !important;}
+  *{animation-duration:.01ms !important;transition-duration:.01ms !important}
+}
+@media (max-width:420px){
+  .spine{display:none}
+  .box-frame{padding-left:20px;padding-right:20px}
 }
 </style>
 </head>
 <body>
-<div class="app">
-
-  <div class="top">
-    <div class="brand">
-      <b>トークテーマくじ引き</b><span>merit</span>
-      <span class="badge" id="syncBadge" hidden></span>
-    </div>
-    <div class="counts">
-      <div class="count"><i>残り</i><b id="cRemain">0</b></div>
-      <div class="count"><i>登録</i><b id="cTotal">0</b></div>
-      <div class="count"><i>履歴</i><b id="cHist">0</b></div>
-    </div>
-  </div>
-
-  <div class="stage" id="stage" data-hint="画面またはスペースキーでスタート">
-    <div class="fuda" id="fuda">
-      <div class="themeBox" id="themeBox">
-        <div class="themeText idle" id="themeText">スタートを押してください</div>
-      </div>
-      <div class="seal" id="seal">決定</div>
-    </div>
-  </div>
-
-  <div class="bottom">
-    <button class="btn primary" id="btnStart">スタート</button>
-    <button class="btn" id="btnSettings">テーマを編集</button>
-    <button class="btn ghost" id="btnReset">履歴と除外をリセット</button>
-    <button class="btn ghost" id="btnFull">全画面表示</button>
-    <a class="btn ghost" href="wadai.html">話題のくじ（500問）</a>
-  </div>
-</div>
-
-<div class="scrim" id="scrim"></div>
-
-<aside class="drawer" id="drawer" aria-label="設定">
-  <header>
-    <h2>テーマと設定</h2>
-    <button class="btn ghost" id="btnClose">閉じる</button>
+<main class="stage">
+  <header class="masthead">
+    <h1>話題のくじ</h1>
+    <div class="rule"><i></i><b>◆</b><i></i></div>
+    <p>雑談が続く、五百の問いかけ</p>
   </header>
-  <div class="body">
 
-    <div class="sect">
-      <h3>テーマを入力</h3>
-      <p class="hint">1行に1テーマ。改行を含むテキストをそのまま貼り付けると、1行ずつ別のテーマになります。行頭の「・」「-」「1.」などの記号は自動で外します。</p>
-      <textarea id="input" placeholder="最近ハマっていること&#10;人生で一番おいしかった食べ物&#10;学生時代に戻れたらやりたいこと"></textarea>
-      <div class="row">
-        <button class="btn primary" id="btnReplace">登録</button>
-        <button class="btn" id="btnAppend">追加で登録</button>
-        <button class="btn ghost" id="btnClearInput">入力欄を空にする</button>
-      </div>
-      <p class="notice" id="notice"></p>
+  <nav class="filters" id="filters" aria-label="カテゴリを選ぶ"></nav>
+
+  <div class="box">
+    <div class="box-frame" id="frame">
+      <span class="corner tl"></span><span class="corner tr"></span>
+      <span class="corner bl"></span><span class="corner br"></span>
+      <span class="glow"></span>
+      <p class="cat" id="cat">&nbsp;</p>
+      <p class="theme" id="theme" aria-live="polite">くじを引くと話題が決まります</p>
     </div>
-
-    <div class="sect">
-      <h3>登録済みのテーマ</h3>
-      <p class="hint">文字をクリックするとその場で直せます。</p>
-      <ul class="list" id="list"></ul>
-      <div class="row">
-        <button class="btn danger" id="btnDeleteAll">すべて削除</button>
-      </div>
-    </div>
-
-    <div class="sect">
-      <h3>抽選の設定</h3>
-      <label class="toggle">
-        <input type="checkbox" id="optExclude" checked>
-        <span class="tx">一度出たテーマを除外する
-          <small>全部出たら「全テーマ終了」と表示します。</small></span>
-      </label>
-      <label class="toggle">
-        <input type="checkbox" id="optSound">
-        <span class="tx">効果音を鳴らす
-          <small>回転中のカチカチ音と、決定音が鳴ります。</small></span>
-      </label>
-      <label class="toggle" id="syncToggleRow">
-        <input type="checkbox" id="optSync">
-        <span class="tx"><span id="syncTitle">くじの内容を保存する</span>
-          <small id="syncNote">テーマと履歴を保存します。</small></span>
-      </label>
-      <p class="auto" id="syncAuto" hidden>
-        <b>最初からオンになっています</b>
-        このリンクを開いた全員が同じテーマ・履歴を見ています。誰かがテーマを変えたりくじを引いたりすると、数秒で全員の画面に反映されます。通常は操作不要です。
-        オフにすると、この端末だけで操作できます（他の端末には反映されません）。
-      </p>
-      <div class="row">
-        <button class="btn ghost" id="btnSyncNow">今すぐ同期</button>
-      </div>
-      <p class="notice" id="syncStatus"></p>
-    </div>
-
-    <div class="sect">
-      <h3>出た順の履歴</h3>
-      <ul class="hist" id="hist"></ul>
-      <div class="row">
-        <button class="btn ghost" id="btnClearHist">履歴を消す</button>
-      </div>
-    </div>
-
+    <div class="spine">話題</div>
   </div>
-</aside>
+
+  <div class="action">
+    <button class="draw" id="draw" type="button">くじを引く</button>
+    <p class="meta" id="meta"></p>
+  </div>
+
+  <section class="history">
+    <h2>これまでの話題</h2>
+    <ol id="hist"><li class="empty">まだ引いていません</li></ol>
+  </section>
+</main>
 
 <script>
-/* ============================================================
-   1. 初期サンプルテーマ ★ここを書き換えれば初期値が変わります
-   ============================================================ */
-const SAMPLE_THEMES = [
-  "最近ハマっていること",
-  "人生で一番おいしかった食べ物",
-  "休日の過ごし方",
-  "最近ちょっと嬉しかったこと",
-  "学生時代に戻れたらやりたいこと",
-  "行ってみたい国と、その理由",
-  "自分の意外な特技",
-  "もう一度観たい映画・ドラマ",
-  "10年後の自分は何をしていそうか",
-  "今日ここに来た理由"
+// トークテーマ 500個（10カテゴリ × 50個）
+// 雑談が盛り上がるくじ引きアプリ用データ
+
+const THEME_DATA = [
+  {
+    category: "自己紹介・その人らしさ",
+    themes: [
+      "最近ハマっていることは何ですか？",
+      "自分を動物にたとえると何だと思いますか？",
+      "名前の由来を聞いたことはありますか？",
+      "初対面の人によく言われる第一印象は？",
+      "自分の性格で気に入っているところは？",
+      "朝起きて最初にすることは何ですか？",
+      "財布やカバンに必ず入っているものは？",
+      "最近誰かに褒められたことは何ですか？",
+      "自分の取扱説明書の一行目に何と書きますか？",
+      "人には言わないけど密かに得意なことは？",
+      "座右の銘や大事にしている言葉はありますか？",
+      "スマホのホーム画面は何の写真ですか？",
+      "休みの日はだいたい何をしていますか？",
+      "一日のうちで一番好きな時間帯はいつですか？",
+      "最近買ってよかったものは何ですか？",
+      "自分を表すキャッチコピーをつけるなら？",
+      "人生で一番お金をかけたものは何ですか？",
+      "家族や友人からは何と呼ばれていますか？",
+      "苦手だけど克服したいことはありますか？",
+      "自分が育った町はどんなところですか？",
+      "好きな色とその理由を教えてください",
+      "何をしている時が一番集中できますか？",
+      "元気が出ない時の自分なりの回復法は？",
+      "部屋を見たらどんな人だと思われそうですか？",
+      "三年前の自分と変わったところはどこですか？",
+      "誰かに自慢したい特技はありますか？",
+      "自分の声や笑い方をどう思っていますか？",
+      "これだけは譲れないこだわりは何ですか？",
+      "今の自分を漢字一文字で表すと何ですか？",
+      "スマホで一番よく使うアプリは何ですか？",
+      "靴やカバンを選ぶときの基準は何ですか？",
+      "人からよく相談される内容はありますか？",
+      "自分の中の小さな習慣を教えてください",
+      "学生時代のあだ名は何でしたか？",
+      "落ち込んだ時に聴きたくなる曲は何ですか？",
+      "貯金する派ですか、使う派ですか？",
+      "予定は詰める派ですか、空ける派ですか？",
+      "今、一番会いたい人は誰ですか？",
+      "自分の中の密かなマイルールはありますか？",
+      "初対面で緊張しないためにしていることは？",
+      "最近笑ったのはどんな出来事でしたか？",
+      "荷物は多い派ですか、少ない派ですか？",
+      "写真を撮られるのは好きなほうですか？",
+      "どんな時に「自分らしいな」と感じますか？",
+      "今年に入って新しく始めたことは何ですか？",
+      "人に言われて気づいた自分の長所は？",
+      "部屋で一番お気に入りの場所はどこですか？",
+      "平日と休日で性格が変わったりしますか？",
+      "一人の時間と誰かといる時間、どちらが好き？",
+      "十年後の自分に一言送るなら何と言いますか？"
+    ]
+  },
+  {
+    category: "食べ物・お店",
+    themes: [
+      "最後の晩餐に選ぶ一皿は何ですか？",
+      "人生で一番おいしかった食べ物は何ですか？",
+      "朝ごはんは毎日どんなものを食べますか？",
+      "行きつけのお店があれば教えてください",
+      "カレーの具で外せない具材は何ですか？",
+      "コンビニで必ず買ってしまうものは？",
+      "苦手だったけど食べられるようになった物は？",
+      "好きなラーメンのスープは何系ですか？",
+      "お寿司で最初に頼むネタは何ですか？",
+      "自分で作れる得意料理はありますか？",
+      "一人で外食するのは平気なほうですか？",
+      "甘いものとしょっぱいもの、どちらが好き？",
+      "冷蔵庫に常備している調味料は何ですか？",
+      "コーヒー派ですか、紅茶派ですか？",
+      "お弁当に入っていると嬉しいおかずは？",
+      "深夜に食べたくなるものは何ですか？",
+      "実家の味で恋しくなる料理はありますか？",
+      "誕生日に食べたいごちそうは何ですか？",
+      "食べ放題で真っ先に取る料理は何ですか？",
+      "お土産で買って帰りたいお菓子は何ですか？",
+      "卵料理の中で一番好きなのは何ですか？",
+      "家で作るチャーハンにこだわりはありますか？",
+      "給食で一番好きだったメニューは何ですか？",
+      "味噌汁の具は何が一番好きですか？",
+      "ご飯のお供にこれだけは欠かせない物は？",
+      "好きなアイスの味を教えてください",
+      "お酒は飲みますか、飲むなら何が好きですか？",
+      "一度食べてみたい高級食材は何ですか？",
+      "外国の料理で一番好きなのはどこの国ですか？",
+      "焼き肉で最初に焼く肉は何ですか？",
+      "パンとご飯、朝はどちらを選びますか？",
+      "意外な組み合わせでおいしい食べ方は？",
+      "食べる順番にこだわりはありますか？",
+      "屋台やお祭りで必ず買うものは何ですか？",
+      "コンビニスイーツで推しの商品はありますか？",
+      "鍋は何鍋が一番好きですか？",
+      "お店選びで重視するポイントは何ですか？",
+      "一人前を食べきれなかった思い出はありますか？",
+      "これまでで一番贅沢した食事は何ですか？",
+      "パンは菓子パン派ですか、食事パン派ですか？",
+      "好きなおにぎりの具を教えてください",
+      "コーヒーに砂糖やミルクは入れますか？",
+      "辛い物はどのくらい得意ですか？",
+      "果物で一番好きなのは何ですか？",
+      "料理をするのは好きですか、苦手ですか？",
+      "出張や旅行先で必ず食べるものはありますか？",
+      "冬になると食べたくなるものは何ですか？",
+      "家でよく作る簡単めしを教えてください",
+      "誰かに作ってもらって嬉しかった料理は？",
+      "食べ物の好みで家族と違うところは？"
+    ]
+  },
+  {
+    category: "旅行・おでかけ",
+    themes: [
+      "今まで行った中で一番良かった場所は？",
+      "死ぬまでに一度は行きたい国はどこですか？",
+      "旅行は計画派ですか、ノープラン派ですか？",
+      "温泉と海、行くならどちらですか？",
+      "旅先で必ず買うお土産はありますか？",
+      "一人旅をしたことはありますか？",
+      "飛行機では窓側と通路側、どちらですか？",
+      "旅行カバンに必ず入れる物は何ですか？",
+      "国内でもう一度行きたい県はどこですか？",
+      "移動時間は何をして過ごしますか？",
+      "泊まるなら旅館とホテル、どちらですか？",
+      "旅先でのハプニング体験はありますか？",
+      "修学旅行はどこへ行きましたか？",
+      "近場でおすすめの散歩コースはありますか？",
+      "車の運転は好きなほうですか？",
+      "ドライブ中によく聴く音楽は何ですか？",
+      "一度は乗ってみたい乗り物はありますか？",
+      "早起きしてでも見たい景色はありますか？",
+      "旅行の予算はどのくらいかけますか？",
+      "お城や神社仏閣は好きなほうですか？",
+      "海外で驚いた文化の違いはありますか？",
+      "日帰りで行くならどこへ行きたいですか？",
+      "遊園地では絶叫系に乗るほうですか？",
+      "旅先で写真をたくさん撮るほうですか？",
+      "泊まりがけで行きたいイベントはありますか？",
+      "電車の旅と車の旅、どちらが好きですか？",
+      "星空がきれいだった場所を覚えていますか？",
+      "旅先で地元の人と話したことはありますか？",
+      "山登りやハイキングの経験はありますか？",
+      "次の連休はどこかへ行く予定がありますか？",
+      "荷物のパッキングにコツはありますか？",
+      "空港や駅の雰囲気は好きですか？",
+      "キャンプやアウトドアはしますか？",
+      "動物園と水族館、どちらを選びますか？",
+      "地元の人しか知らない名所はありますか？",
+      "旅行中に一番お金をかけるのは何ですか？",
+      "行ってみたら想像と違った場所はありますか？",
+      "雨の日のおでかけ先は何が思いつきますか？",
+      "海外に住むならどこの国がいいですか？",
+      "旅先で食べた忘れられない味は何ですか？",
+      "一泊二日で行くならどこがおすすめですか？",
+      "街歩きで気になるのはどんなお店ですか？",
+      "高速道路のサービスエリアは好きですか？",
+      "誰と行く旅行が一番気楽ですか？",
+      "パスポートは今持っていますか？",
+      "温泉に入るとき最初にすることは何ですか？",
+      "秘境や離島に興味はありますか？",
+      "帰り道で寄り道したくなる場所はありますか？",
+      "お土産をあげる相手は誰が多いですか？",
+      "旅行から帰って最初にすることは何ですか？"
+    ]
+  },
+  {
+    category: "子ども時代・思い出",
+    themes: [
+      "子どもの頃の夢は何でしたか？",
+      "小学生の頃、休み時間は何をしていましたか？",
+      "初めて買ってもらったゲームは何ですか？",
+      "子どもの頃に好きだったテレビ番組は？",
+      "夏休みの宿題は早めに終わらせる派でしたか？",
+      "初めての一人のおつかいを覚えていますか？",
+      "通学路で覚えていることはありますか？",
+      "子どもの頃に怖かったものは何ですか？",
+      "得意だった教科と苦手だった教科は？",
+      "部活動は何をやっていましたか？",
+      "初めてのお小遣いは何に使いましたか？",
+      "昔よく遊んだ遊びを教えてください",
+      "運動会で出た種目は何でしたか？",
+      "子どもの頃の憧れの人は誰でしたか？",
+      "家族旅行で覚えている場所はありますか？",
+      "誕生日プレゼントで嬉しかった物は？",
+      "兄弟や友達とのケンカの思い出はありますか？",
+      "昔集めていたものはありますか？",
+      "初めて自転車に乗れた日を覚えていますか？",
+      "実家で飼っていた生き物はいましたか？",
+      "学生時代の先生で印象に残る人はいますか？",
+      "卒業式では泣きましたか？",
+      "子どもの頃に信じていた嘘はありますか？",
+      "子どもの頃の口ぐせを覚えていますか？",
+      "好きだった絵本や児童書はありますか？",
+      "一番仲が良かった友達は今どうしていますか？",
+      "子どもの頃の写真で好きな一枚はありますか？",
+      "家の手伝いは何をしていましたか？",
+      "遠足のおやつはいくらまででしたか？",
+      "初めて自分で買ったCDや本は何ですか？",
+      "雨の日の教室はどんな雰囲気でしたか？",
+      "昔怒られて今でも覚えていることは？",
+      "文化祭や学園祭の思い出はありますか？",
+      "塾や習い事は何をしていましたか？",
+      "初めてのアルバイトは何でしたか？",
+      "子どもの頃の隠れ家はありましたか？",
+      "学校からの帰り道で寄った場所は？",
+      "好きだった駄菓子は何ですか？",
+      "子どもの頃に憧れた職業は何ですか？",
+      "当時流行っていた遊びやおもちゃは？",
+      "家族の中でどんな役割の子どもでしたか？",
+      "忘れられない先生の言葉はありますか？",
+      "初めて泊まりで出かけたのはいつですか？",
+      "子どもの頃の決めゼリフはありましたか？",
+      "昔住んでいた家の間取りを覚えていますか？",
+      "学生時代に熱中したことは何ですか？",
+      "制服と私服、どちらの学校でしたか？",
+      "学校行事で一番好きだったのは何ですか？",
+      "子どもの頃に戻れるなら何歳がいいですか？",
+      "当時の自分に伝えたいことはありますか？"
+    ]
+  },
+  {
+    category: "仕事・働き方",
+    themes: [
+      "今の仕事を選んだきっかけは何ですか？",
+      "仕事で一番やりがいを感じる瞬間は？",
+      "朝は何時に起きて出かけていますか？",
+      "職場の雰囲気を一言で表すと何ですか？",
+      "仕事道具でこだわっている物はありますか？",
+      "集中したい時にしている工夫はありますか？",
+      "初めての給料は何に使いましたか？",
+      "仕事終わりのご褒美は何ですか？",
+      "転職を考えたことはありますか？",
+      "憧れる働き方はどんなスタイルですか？",
+      "在宅と出社、どちらが合っていますか？",
+      "会議で発言するのは得意なほうですか？",
+      "仕事で失敗した時の立て直し方は？",
+      "尊敬している上司や先輩はいますか？",
+      "名刺交換で気をつけていることは？",
+      "苦手な業務をどう乗り切っていますか？",
+      "一日のタスク管理はどうしていますか？",
+      "全く違う職業に就くなら何がいいですか？",
+      "仕事で一番身についたスキルは何ですか？",
+      "休憩時間はどう過ごしていますか？",
+      "職場で使ってしまう口ぐせはありますか？",
+      "残業についてどう思っていますか？",
+      "仕事とプライベートは分ける派ですか？",
+      "お客様に言われて嬉しかった言葉は？",
+      "学生時代のバイトで学んだことは？",
+      "予定管理は手帳派ですか、デジタル派ですか？",
+      "締切前はどんな状態になりますか？",
+      "チーム作業と一人作業、どちらが好きですか？",
+      "これから身につけたいスキルはありますか？",
+      "通勤時間は何をして過ごしていますか？",
+      "職場での服装はどんな感じですか？",
+      "仕事のモチベーションは何ですか？",
+      "最近仕事で新しく覚えたことは何ですか？",
+      "メールと電話、どちらが気楽ですか？",
+      "資格を取ったことはありますか？",
+      "独立や副業に興味はありますか？",
+      "職場のランチはどうしていますか？",
+      "忙しい時期は一年のいつ頃ですか？",
+      "仕事で一番緊張した場面は何ですか？",
+      "後輩に教える時に心がけていることは？",
+      "今の仕事を子どもに説明するなら何と言う？",
+      "定年後は何をしていたいですか？",
+      "職場で一番居心地のいい場所はどこですか？",
+      "仕事道具を新調するとしたら何ですか？",
+      "休みが一日増えたら何に使いますか？",
+      "自分の職種の業界用語を一つ教えてください",
+      "仕事で使うアプリのおすすめはありますか？",
+      "頼まれごとを断るのは得意なほうですか？",
+      "理想の職場環境はどんな場所ですか？",
+      "働くうえで一番大事にしていることは？"
+    ]
+  },
+  {
+    category: "趣味・エンタメ",
+    themes: [
+      "最近見て面白かった映画は何ですか？",
+      "繰り返し見てしまう作品はありますか？",
+      "好きな音楽のジャンルを教えてください",
+      "カラオケの十八番は何ですか？",
+      "最近読んだ本で印象に残ったものは？",
+      "好きな漫画を一つ挙げるなら何ですか？",
+      "スポーツは見る派ですか、やる派ですか？",
+      "楽器を演奏できますか？",
+      "ゲームはどんなジャンルが好きですか？",
+      "休日によく見る動画のジャンルは何ですか？",
+      "推しと呼べる存在はいますか？",
+      "今まで一番泣いた作品は何ですか？",
+      "好きな俳優や芸人はいますか？",
+      "展覧会や美術館に行くことはありますか？",
+      "写真を撮るのは好きですか？",
+      "一番長く続いている趣味は何ですか？",
+      "最近始めてみたい趣味はありますか？",
+      "ラジオやポッドキャストは聴きますか？",
+      "毎年楽しみにしているイベントはありますか？",
+      "コレクションしている物はありますか？",
+      "アニメで一番好きな作品は何ですか？",
+      "好きな作家やアーティストはいますか？",
+      "ライブや舞台を見に行くことはありますか？",
+      "一日中やっていられることは何ですか？",
+      "手先を使う趣味はありますか？",
+      "お笑いのネタで好きなものはありますか？",
+      "好きな作品の名セリフを教えてください",
+      "映画は映画館と家、どちらで見ますか？",
+      "体を動かす習慣はありますか？",
+      "応援しているスポーツチームはありますか？",
+      "昔ハマっていて今はやらない趣味は？",
+      "音楽は作業中に聴くほうですか？",
+      "お金と時間が許すなら何を極めたいですか？",
+      "続編が出たら絶対に見る作品はありますか？",
+      "本は紙派ですか、電子派ですか？",
+      "毎週見ているテレビ番組はありますか？",
+      "家でのくつろぎ方を教えてください",
+      "話題になっていて気になっている物は？",
+      "誰かに勧めたい作品はありますか？",
+      "一人カラオケや一人映画はしますか？",
+      "好きなキャラクターは誰ですか？",
+      "趣味にかけている月の予算はどれくらい？",
+      "SNSはどれをよく使っていますか？",
+      "ボードゲームやカードゲームはしますか？",
+      "植物や生き物を育てていますか？",
+      "好きな乗り物や機械はありますか？",
+      "熱中しすぎて時間を忘れたことはありますか？",
+      "手作りしたことがあるものはありますか？",
+      "趣味を通じて知り合った仲間はいますか？",
+      "子どもの頃と変わらず好きなものは？"
+    ]
+  },
+  {
+    category: "もしも・空想",
+    themes: [
+      "宝くじで一億円当たったら何に使いますか？",
+      "一日だけ透明人間になれたら何をしますか？",
+      "好きな時代へ行けるならいつを選びますか？",
+      "超能力を一つ持てるなら何がいいですか？",
+      "無人島に一つ持っていくなら何ですか？",
+      "生まれ変わるなら何の動物になりたいですか？",
+      "一年間仕事を休めたら何をしますか？",
+      "好きな有名人と一日過ごせるなら誰と？",
+      "記憶を消して一度だけ体験し直せるなら？",
+      "空を飛べたらまずどこへ行きますか？",
+      "世界中どこにでも住めるならどこですか？",
+      "時間を止められたら何をしますか？",
+      "自分の人生が映画になったら主演は誰？",
+      "願いが一つだけ叶うなら何を願いますか？",
+      "未来が一つ分かるなら何を知りたいですか？",
+      "別の職業に就けるなら何をやってみたい？",
+      "過去の自分に一言だけ言えるなら何と？",
+      "十億円と若さ、どちらを選びますか？",
+      "どんな家に住んでみたいですか？",
+      "自分の店を出すとしたら何屋さんですか？",
+      "一週間だけ他人になれるなら誰ですか？",
+      "言葉が全部通じるなら誰と話したいですか？",
+      "一つだけ無限に増やせるなら何ですか？",
+      "好きな作品の世界に入れるならどこですか？",
+      "一生同じ食事なら何を選びますか？",
+      "ペットと話せたら何を聞きたいですか？",
+      "世界を一つだけ変えられるなら何を変える？",
+      "自分の銅像が建つなら何のポーズにする？",
+      "眠らなくてよくなったら何をしますか？",
+      "一日が三十時間になったら何をしますか？",
+      "歴史上の人物と食事できるなら誰ですか？",
+      "別の名前をつけるとしたら何にしますか？",
+      "タイムカプセルに何を入れますか？",
+      "自分専用のロボットに何をさせますか？",
+      "生まれ変わっても同じ人生を選びますか？",
+      "月に住めるとしたら行ってみたいですか？",
+      "自分のテーマソングを選ぶなら何ですか？",
+      "苦手を一つ克服できるなら何にしますか？",
+      "一億円、家と旅のどちらに使いますか？",
+      "好きなだけ寝られたら何時間寝ますか？",
+      "自伝を出すならタイトルは何にしますか？",
+      "王様になったら最初に出す法律は何ですか？",
+      "明日世界が終わるなら今日何をしますか？",
+      "一日だけ性別が変わったら何をしますか？",
+      "好きな季節だけの国に住みたいですか？",
+      "会ってみたい昔の偉人は誰ですか？",
+      "密着番組がつくなら何を撮らせますか？",
+      "未来の道具で一つ欲しいものは何ですか？",
+      "世界一になれるなら何の分野がいいですか？",
+      "十年眠って起きたら最初に何を見ますか？"
+    ]
+  },
+  {
+    category: "価値観・ちょっと深い話",
+    themes: [
+      "幸せを感じるのはどんな瞬間ですか？",
+      "人生で大きかった選択は何ですか？",
+      "大事にしている人付き合いのルールは？",
+      "迷った時はどうやって決めていますか？",
+      "自分を変えた本や言葉はありますか？",
+      "一番感謝している人は誰ですか？",
+      "続けていて良かったと思うことは何ですか？",
+      "どんな人を尊敬しますか？",
+      "失敗から学んだことはありますか？",
+      "お金と時間、どちらが大事だと思いますか？",
+      "何歳になっても続けたいことは何ですか？",
+      "自分にとって「豊かさ」とは何ですか？",
+      "人に優しくできた瞬間を覚えていますか？",
+      "苦手な人とはどう付き合っていますか？",
+      "やめて良かったことはありますか？",
+      "自分の弱さをどう受け止めていますか？",
+      "「これでよかった」と思えた出来事は？",
+      "誰かに助けられた経験はありますか？",
+      "目標を立てるほうですか？",
+      "挑戦と安定、どちらを選びますか？",
+      "家族との距離感はどんな感じですか？",
+      "老後はどんなふうに過ごしたいですか？",
+      "一番忘れられない言葉は何ですか？",
+      "人を信じるのは得意なほうですか？",
+      "やり直せるならどこに戻りたいですか？",
+      "自分にとって理想の一日はどんな日ですか？",
+      "心が落ち着く場所はどこですか？",
+      "他人と比べてしまう時どうしていますか？",
+      "何のために働いていると思いますか？",
+      "これだけは譲れない価値観は何ですか？",
+      "誰かの支えになれたと思う経験は？",
+      "変わりたいと思うところはありますか？",
+      "五年後どうなっていたいですか？",
+      "良い友人の条件は何だと思いますか？",
+      "感情的になった時の対処法はありますか？",
+      "自分を許せた経験はありますか？",
+      "人生の転機はいつでしたか？",
+      "この先、何を残したいと思いますか？",
+      "「大人になった」と感じた瞬間は？",
+      "一番勇気が要った決断は何ですか？",
+      "自分の機嫌をどうやって取っていますか？",
+      "意見が違う人とはどう話しますか？",
+      "何もしない時間は好きですか？",
+      "直感と理屈、どちらを信じますか？",
+      "幸せそうだと思う人はどんな人ですか？",
+      "誰かを許せた経験はありますか？",
+      "今、一番ほしいものは何ですか？",
+      "続けるのが難しいと感じるのは何ですか？",
+      "今の人生に点数をつけるなら何点ですか？",
+      "明日から一つ習慣を変えるなら何ですか？"
+    ]
+  },
+  {
+    category: "笑える失敗談・あるある",
+    themes: [
+      "寝坊してやらかした話はありますか？",
+      "人違いをして気まずかった経験は？",
+      "財布を忘れて困った話はありますか？",
+      "家の鍵をなくしたことはありますか？",
+      "衝動買いして後悔した物はありますか？",
+      "乗り物を乗り過ごした経験はありますか？",
+      "言い間違いで笑われたことはありますか？",
+      "服を裏返しに着ていた経験はありますか？",
+      "スマホをどこかに置き忘れた事件は？",
+      "名前を覚え間違えていた話はありますか？",
+      "家電を壊してしまった経験はありますか？",
+      "料理で大失敗した話はありますか？",
+      "集合場所を間違えた経験はありますか？",
+      "大事な日に限って起きるトラブルは？",
+      "カバンの中で何かをこぼした経験は？",
+      "送信先を間違えたメールはありますか？",
+      "傘は今までに何本なくしましたか？",
+      "人前で派手に転んだことはありますか？",
+      "予約をうっかり忘れていた話は？",
+      "自動ドアが開かず立ち尽くした経験は？",
+      "レジで財布の中身が足りず焦った話は？",
+      "スーパーでついやりがちなことは？",
+      "目覚まし時計はいくつかけていますか？",
+      "電話で名乗り間違えた経験はありますか？",
+      "服のサイズを間違えて買った話は？",
+      "探し物が意外な場所から出てきた話は？",
+      "覚えたつもりが全然違っていたことは？",
+      "家を出てすぐ戻る理由は何が多いですか？",
+      "うっかり二度買いした物はありますか？",
+      "慌てて出かけると何を忘れがちですか？",
+      "道に迷った時はどうしていますか？",
+      "変換ミスで面白いことになった経験は？",
+      "電車で寝過ごしてどこまで行きましたか？",
+      "掃除中につい脱線してしまうことは？",
+      "ダイエットが続かなかった理由は？",
+      "通販で失敗した買い物はありますか？",
+      "お釣りを間違えられた経験はありますか？",
+      "靴下が片方消える現象は起きますか？",
+      "洗濯でやってしまった失敗はありますか？",
+      "顔と名前が一致しない時どうしますか？",
+      "荷物を持ちすぎて困った経験は？",
+      "スマホの充電が切れて困った話は？",
+      "冷蔵庫の奥から何が出てきましたか？",
+      "声が裏返って恥ずかしかった経験は？",
+      "遅刻の理由で一番強烈だったものは？",
+      "家族にバレてしまった内緒事はありますか？",
+      "噛みやすくて言えない言葉はありますか？",
+      "自分だけかもと思うクセはありますか？",
+      "眠すぎて記憶がない時の行動は？",
+      "笑いすぎて涙が出た出来事はありますか？"
+    ]
+  },
+  {
+    category: "季節・日常のこと",
+    themes: [
+      "一年で一番好きな季節はいつですか？",
+      "春になると必ずすることはありますか？",
+      "夏の暑さ対策は何をしていますか？",
+      "秋に食べたくなるものは何ですか？",
+      "冬の寒さ対策は何をしていますか？",
+      "雨の日の過ごし方を教えてください",
+      "桜はどこで見るのが好きですか？",
+      "花火大会に行った思い出はありますか？",
+      "年末年始はどう過ごしていますか？",
+      "お正月に必ず食べるものは何ですか？",
+      "大掃除は得意なほうですか？",
+      "衣替えはいつ頃していますか？",
+      "朝の支度は何分くらいかかりますか？",
+      "寝る前の習慣はありますか？",
+      "家事の中で好きなものはどれですか？",
+      "買い物はまとめ買い派ですか？",
+      "洗濯物は外干し派ですか、部屋干し派ですか？",
+      "休日の朝は何時に起きますか？",
+      "家の中で一番長くいる場所はどこですか？",
+      "好きな天気はどんな日ですか？",
+      "掃除機をかけるのは週に何回ですか？",
+      "お風呂は朝派ですか、夜派ですか？",
+      "睡眠時間はどれくらいとっていますか？",
+      "部屋の模様替えはよくしますか？",
+      "冷房と暖房の設定温度は何度ですか？",
+      "季節の変わり目に気をつけていることは？",
+      "近所付き合いはどんな感じですか？",
+      "定期的に買っている物はありますか？",
+      "一週間で一番好きな曜日はいつですか？",
+      "月曜の朝はどんな気分になりますか？",
+      "年賀状は今も出していますか？",
+      "自分の誕生日はどう過ごしますか？",
+      "節分やお月見などの行事はしますか？",
+      "コンビニに行く頻度はどのくらいですか？",
+      "財布の中はきれいなほうですか？",
+      "スマホは一日何時間くらい使いますか？",
+      "家計簿はつけていますか？",
+      "冷蔵庫に必ず入っている飲み物は？",
+      "郵便受けは一日に何回見ますか？",
+      "家の中で好きな音はありますか？",
+      "季節を感じるのはどんな時ですか？",
+      "台風の日はどうやって過ごしますか？",
+      "雪が降るとどんな気持ちになりますか？",
+      "連休の最終日はどう過ごしますか？",
+      "買ってよかった生活用品はありますか？",
+      "朝はテレビをつける派ですか？",
+      "一日の終わりに必ずすることは何ですか？",
+      "換気や掃除でこだわりはありますか？",
+      "傘は今、家に何本ありますか？",
+      "今週楽しみにしていることは何ですか？"
+    ]
+  }
 ];
 
-/* ------------------------------------------------------------
-   状態（すべてメモリ内。ページを閉じると消えます）
-   ローカルに保存して使い回したい場合は、themes を localStorage に
-   保存する処理をここに追加してください。
-   ------------------------------------------------------------ */
-let themes  = SAMPLE_THEMES.slice();
-let drawn   = [];      // 出たテーマ（履歴と除外に使う）
-let spinning = false;
-let timer    = null;
-let lastShown = null;
+// 全テーマをフラットに使いたい場合
+const ALL_THEMES = THEME_DATA.flatMap(g =>
+  g.themes.map(t => ({ category: g.category, text: t }))
+);
+// ALL_THEMES.length === 500
 
-const $ = id => document.getElementById(id);
-const el = {
-  stage:$("stage"), fuda:$("fuda"), themeBox:$("themeBox"), themeText:$("themeText"),
-  seal:$("seal"), start:$("btnStart"), notice:$("notice"),
-  cRemain:$("cRemain"), cTotal:$("cTotal"), cHist:$("cHist"),
-  list:$("list"), hist:$("hist"), input:$("input"),
-  drawer:$("drawer"), scrim:$("scrim"),
-  optExclude:$("optExclude"), optSound:$("optSound"),
-  optSync:$("optSync"), syncNote:$("syncNote"), syncStatus:$("syncStatus"),
-  syncToggleRow:$("syncToggleRow"), syncAuto:$("syncAuto"), syncBadge:$("syncBadge"),
-  syncTitle:$("syncTitle")
-};
 
-/* ============================================================
-   2. テーマの分割・正規化 ★改行ペースト対応の中心部分
-   ============================================================ */
-// 行頭の箇条書き記号・連番を落とすためのパターン
-const BULLET = /^[\s\u3000]*(?:[・･‧⋅\-–—ー‐*＊+＋●○◯■□▪▫◆◇>＞»→]|[0-9０-９]{1,3}\s*[.)．）、，:：]|[（(]\s*[0-9０-９]{1,3}\s*[)）]|[①-⑳㉑-㉟]|[⑴-⒇]|[ⅰ-ⅹ]\s*[.)．）])\s*/;
+(function(){
+  const DURATION = 3500;
+  const FAST = 45, SLOW = 400;
 
-function parseLines(raw){
-  // 改行（CRLF / CR / LF）とタブで分割。Excelの列コピーにも対応。
-  const rawLines = String(raw).split(/\r\n|\r|\n|\t/);
-  const out = [];
-  let dup = 0;
-  const seen = new Set(themesKeySetFromNothing());
+  const frame = document.getElementById('frame');
+  const catEl = document.getElementById('cat');
+  const themeEl = document.getElementById('theme');
+  const drawBtn = document.getElementById('draw');
+  const metaEl = document.getElementById('meta');
+  const histEl = document.getElementById('hist');
+  const filtersEl = document.getElementById('filters');
 
-  for(let line of rawLines){
-    line = line.replace(/[\u3000\s]+/g," ");        // 全角スペース・連続空白を1つに
-    line = line.trim();
-    if(!line) continue;                              // 空行は無視
-    line = line.replace(BULLET,"").trim();           // 行頭記号・連番を除去
-    line = line.replace(/^"(.*)"$/,"$1").replace(/""/g,'"').trim(); // Excelの引用符
-    if(!line) continue;
-    const key = line;
-    if(seen.has(key)){ dup++; continue; }            // 貼り付け内での重複
-    seen.add(key);
-    out.push(line);
-  }
-  return {items:out, dup:dup};
-}
-function themesKeySetFromNothing(){ return []; }      // 分割時は入力内の重複のみ判定
+  const used = new Set();
+  let filter = 'すべて';
+  let history = [];
+  let drawing = false;
+  let hasDrawn = false;
 
-/* ============================================================
-   3. 登録・一覧・履歴の描画
-   ============================================================ */
-function setNotice(msg, warn){
-  el.notice.textContent = msg || "";
-  el.notice.classList.toggle("warn", !!warn);
-}
-
-function candidates(){
-  if(!el.optExclude.checked) return themes.slice();
-  return themes.filter(t => !drawn.includes(t));
-}
-
-function render(){
-  // 件数
-  el.cTotal.textContent  = themes.length;
-  el.cRemain.textContent = candidates().length;
-  el.cHist.textContent   = drawn.length;
-
-  // 一覧（行がそのまま編集欄）
-  el.list.innerHTML = "";
-  if(themes.length === 0){
-    const p = document.createElement("li");
-    p.className = "empty";
-    p.textContent = "まだテーマがありません。上の欄に入力して登録してください。";
-    el.list.appendChild(p);
-  }else{
-    themes.forEach((t,i)=>{
-      const li = document.createElement("li");
-
-      const no = document.createElement("span");
-      no.className = "no"; no.textContent = (i+1);
-
-      const inp = document.createElement("input");
-      inp.type = "text"; inp.value = t;
-      inp.setAttribute("aria-label", (i+1)+"番目のテーマ");
-      if(drawn.includes(t)) inp.classList.add("done");
-      inp.addEventListener("change", ()=>{
-        const v = inp.value.trim();
-        if(!v){ themes.splice(i,1); }
-        else   { themes[i] = v; }
-        render();
-        setNotice("テーマを更新しました。");
-      });
-
-      const del = document.createElement("button");
-      del.className = "del"; del.type = "button";
-      del.textContent = "×";
-      del.setAttribute("aria-label", (i+1)+"番目のテーマを削除");
-      del.addEventListener("click", ()=>{
-        themes.splice(i,1); render();
-        setNotice("1件削除しました。");
-      });
-
-      li.append(no, inp, del);
-      el.list.appendChild(li);
+  const categories = ['すべて', ...THEME_DATA.map(g => g.category)];
+  categories.forEach(name => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.textContent = name;
+    b.setAttribute('aria-pressed', String(name === filter));
+    b.addEventListener('click', () => {
+      if (drawing) return;
+      filter = name;
+      [...filtersEl.children].forEach(c =>
+        c.setAttribute('aria-pressed', String(c.textContent === filter)));
+      updateMeta();
     });
-  }
+    filtersEl.appendChild(b);
+  });
 
-  // 履歴
-  el.hist.innerHTML = "";
-  if(drawn.length === 0){
-    const p = document.createElement("li");
-    p.className = "empty"; p.textContent = "まだ引いていません。";
-    el.hist.appendChild(p);
-  }else{
-    drawn.forEach((t,i)=>{
-      const li = document.createElement("li");
-      const n = document.createElement("span");
-      n.className = "n"; n.textContent = (i+1);
-      const s = document.createElement("span"); s.textContent = t;
-      li.append(n,s);
-      el.hist.appendChild(li);
-    });
-  }
+  const inFilter = i =>
+    filter === 'すべて' || ALL_THEMES[i].category === filter;
 
-  // 内容が変わったらクラウドへ保存を予約
-  if(typeof schedulePush === "function") schedulePush();
-}
-
-function registerThemes(mode){
-  const {items, dup} = parseLines(el.input.value);
-  if(items.length === 0){
-    setNotice("登録できる行がありません。1行に1テーマで入力してください。", true);
-    return;
-  }
-  let dupExisting = 0;
-  if(mode === "replace"){
-    themes = items;
-    drawn = [];
-  }else{
-    items.forEach(t=>{
-      if(themes.includes(t)) dupExisting++;
-      else themes.push(t);
-    });
-  }
-  let msg = items.length - dupExisting + "件のテーマを登録しました。";
-  const skipped = dup + dupExisting;
-  if(skipped > 0) msg += " " + skipped + "件を重複として除外しました。";
-  if(mode === "replace") msg += " 履歴もリセットしました。";
-  setNotice(msg);
-  el.input.value = "";
-  resetStage();
-  render();
-}
-
-/* ============================================================
-   4. 文字サイズの自動調整
-   ============================================================ */
-function quickSize(text){
-  const len = [...text].length;
-  if(len <=  6) return 9.0;
-  if(len <= 10) return 7.4;
-  if(len <= 14) return 6.2;
-  if(len <= 20) return 5.0;
-  if(len <= 30) return 4.0;
-  if(len <= 44) return 3.2;
-  if(len <= 64) return 2.6;
-  return 2.1;
-}
-// 実際の折り返し位置を調べ、行数と最終行の文字数を返す
-function measureLines(node){
-  const t = node.firstChild;
-  if(!t || t.nodeType !== 3) return {lines:1, last:0};
-  const s = t.textContent;
-  const range = document.createRange();
-  let lastTop = null, lines = 0, count = 0;
-  for(let i = 0; i < s.length; i++){
-    if(/\s/.test(s[i])) continue;
-    range.setStart(t, i); range.setEnd(t, i + 1);
-    const r = range.getBoundingClientRect();
-    if(!r.height) continue;
-    const top = Math.round(r.top);
-    if(lastTop === null || Math.abs(top - lastTop) > 2){ lastTop = top; lines++; count = 1; }
-    else count++;
-  }
-  return {lines: Math.max(lines,1), last: count};
-}
-
-function setText(text, precise){
-  el.themeText.textContent = text;
-  let size = quickSize(text);
-  if(window.innerWidth < 760) size *= 1.55;   // 狭い画面では相対的に大きく
-  el.themeText.style.fontSize = size + "vw";
-  if(!precise) return;
-
-  // はみ出す場合は収まるまで縮める
-  let guard = 0;
-  while(guard < 60 &&
-        (el.themeBox.scrollHeight > el.themeBox.clientHeight + 1 ||
-         el.themeText.scrollWidth > el.themeBox.clientWidth + 1)){
-    size *= 0.95;
-    if(size < 0.8) break;
-    el.themeText.style.fontSize = size + "vw";
-    guard++;
-  }
-
-  // 最終行が1文字だけになる（ぶら下がり）状態を解消する
-  let g2 = 0;
-  while(g2 < 20){
-    const m = measureLines(el.themeText);
-    if(m.lines <= 1 || m.last >= 2) break;
-    size *= 0.96;
-    if(size < 0.8) break;
-    el.themeText.style.fontSize = size + "vw";
-    g2++;
-  }
-}
-
-/* ============================================================
-   5. 効果音（Web Audio。音声ファイルは使いません）
-   ============================================================ */
-let actx = null;
-function beep(freq, dur, vol){
-  if(!el.optSound.checked) return;
-  try{
-    if(!actx) actx = new (window.AudioContext || window.webkitAudioContext)();
-    const o = actx.createOscillator(), g = actx.createGain();
-    o.type = "triangle"; o.frequency.value = freq;
-    g.gain.setValueAtTime(vol, actx.currentTime);
-    g.gain.exponentialRampToValueAtTime(0.0001, actx.currentTime + dur);
-    o.connect(g); g.connect(actx.destination);
-    o.start(); o.stop(actx.currentTime + dur);
-  }catch(e){ /* 音が出せない環境では無視 */ }
-}
-
-/* ============================================================
-   6. 抽選
-   ============================================================ */
-function resetStage(){
-  el.seal.classList.remove("on");
-  el.fuda.classList.remove("decided");
-  el.themeText.classList.remove("pop");
-  el.themeText.classList.add("idle");
-  setText(themes.length ? "スタートを押してください" : "テーマを登録してください", true);
-  el.start.textContent = "スタート";
-  el.start.disabled = false;
-  el.stage.dataset.hint = "画面またはスペースキーでスタート";
-  lastShown = null;
-}
-
-function startDraw(){
-  if(spinning) return;
-
-  if(themes.length === 0){
-    el.themeText.classList.add("idle");
-    setText("テーマを登録してください", true);
-    setNotice("テーマが0件です。まず入力して登録してください。", true);
-    openDrawer(); el.input.focus();
-    return;
-  }
-  const pool = candidates();
-  if(pool.length === 0){
-    el.themeText.classList.remove("idle");
-    el.seal.classList.remove("on");
-    setText("全テーマ終了", true);
-    el.stage.dataset.hint = "「履歴と除外をリセット」で最初から引けます";
-    el.start.disabled = true;
-    el.start.textContent = "全テーマ終了";
-    return;
-  }
-
-  // 結果を先に公平に決める（Math.random による均等抽選）
-  const result = pool[Math.floor(Math.random() * pool.length)];
-
-  spinning = true;
-  closeDrawer();                       // 抽選中は設定パネルを隠す
-  el.start.disabled = true;
-  el.start.textContent = "抽選中…";
-  el.seal.classList.remove("on");
-  el.fuda.classList.remove("decided");
-  el.themeText.classList.remove("idle","pop");
-  el.fuda.classList.add("spinning");
-  el.stage.dataset.hint = "";
-
-  const duration = 3000 + Math.random() * 1000;      // 3〜4秒
-  const fast     = 60   + Math.random() * 20;        // 開始間隔 60〜80ms
-  const slow     = 300  + Math.random() * 200;       // 終盤間隔 300〜500ms
-  const t0 = performance.now();
-
-  function flashOne(avoid){
-    let pick;
-    if(pool.length === 1){
-      pick = pool[0];
-    }else{
-      let guard = 0;
-      do{ pick = pool[Math.floor(Math.random() * pool.length)]; guard++; }
-      while(guard < 24 && (pick === lastShown || pick === avoid));
+  function pool(){
+    const p = [];
+    for (let i = 0; i < ALL_THEMES.length; i++){
+      if (inFilter(i) && !used.has(i)) p.push(i);
     }
-    lastShown = pick;
-    setText(pick, false);
-    el.themeText.classList.remove("flick");
-    void el.themeText.offsetWidth;
-    el.themeText.classList.add("flick");
+    return p;
   }
 
-  function tick(){
-    const t = Math.min(1, (performance.now() - t0) / duration);
-    if(t >= 1){ decide(result); return; }
-    // 残り時間が少ないときは、最後の1コマに結果が出ないようにしておく
-    flashOne(t > 0.9 ? result : null);
-    beep(1200 - 500 * t, 0.02, 0.05);
-    const wait = fast + (slow - fast) * Math.pow(t, 2.2);   // だんだん遅くなる
-    timer = setTimeout(tick, wait);
-  }
-  tick();
-}
-
-function decide(result){
-  clearTimeout(timer);
-  timer = null;
-  spinning = false;
-  el.fuda.classList.remove("spinning");
-  el.fuda.classList.add("decided");
-
-  el.themeText.classList.remove("flick");
-  setText(result, true);
-  void el.themeText.offsetWidth;
-  el.themeText.classList.add("pop");
-  el.seal.classList.add("on");
-
-  beep(784, 0.14, 0.11);
-  setTimeout(()=>beep(1175, 0.3, 0.09), 120);
-
-  drawn.push(result);
-  render();
-
-  el.start.disabled = false;
-  el.start.textContent = "もう一度";
-  const left = candidates().length;
-  el.stage.dataset.hint = (el.optExclude.checked && left === 0)
-    ? "これで全テーマ終了です"
-    : "画面またはスペースキーでもう一度";
-}
-
-/* ============================================================
-   7. ドロワーとイベント
-   ============================================================ */
-function openDrawer(){
-  el.drawer.classList.add("open");
-  el.scrim.classList.add("on");
-}
-function closeDrawer(){
-  el.drawer.classList.remove("open");
-  el.scrim.classList.remove("on");
-}
-
-$("btnStart").addEventListener("click", startDraw);
-el.stage.addEventListener("click", startDraw);
-$("btnSettings").addEventListener("click", ()=>{
-  el.drawer.classList.contains("open") ? closeDrawer() : openDrawer();
-});
-$("btnClose").addEventListener("click", closeDrawer);
-el.scrim.addEventListener("click", closeDrawer);
-
-$("btnReplace").addEventListener("click", ()=>registerThemes("replace"));
-$("btnAppend").addEventListener("click", ()=>registerThemes("append"));
-$("btnClearInput").addEventListener("click", ()=>{
-  el.input.value = ""; setNotice(""); el.input.focus();
-});
-$("btnDeleteAll").addEventListener("click", ()=>{
-  if(themes.length === 0){ setNotice("削除するテーマがありません。", true); return; }
-  if(!confirm("登録済みのテーマをすべて削除します。よろしいですか？")) return;
-  themes = []; drawn = [];
-  render(); resetStage();
-  setNotice("すべて削除しました。");
-});
-$("btnClearHist").addEventListener("click", ()=>{
-  drawn = []; render(); resetStage();
-  setNotice("履歴を消しました。");
-});
-$("btnReset").addEventListener("click", ()=>{
-  drawn = []; render(); resetStage();
-});
-$("btnFull").addEventListener("click", ()=>{
-  if(document.fullscreenElement) document.exitFullscreen();
-  else document.documentElement.requestFullscreen?.();
-});
-el.optExclude.addEventListener("change", ()=>{
-  render();
-  if(!spinning && candidates().length > 0 && el.start.disabled === false && el.start.textContent === "全テーマ終了") resetStage();
-  if(!spinning && candidates().length > 0) el.start.disabled = false;
-});
-
-// 貼り付けた直後に件数をプレビュー
-el.input.addEventListener("paste", ()=>{
-  setTimeout(()=>{
-    const {items, dup} = parseLines(el.input.value);
-    let m = items.length + "件のテーマを検出しました。";
-    if(dup > 0) m += " （重複 " + dup + "件は除外されます）";
-    setNotice(items.length ? m : "テーマを検出できませんでした。", !items.length);
-  }, 0);
-});
-el.input.addEventListener("input", ()=>{
-  if(!el.input.value.trim()) setNotice("");
-});
-
-// スペースキーでスタート（入力中は除く）
-document.addEventListener("keydown", e=>{
-  const tag = (e.target.tagName || "").toLowerCase();
-  if(tag === "textarea" || tag === "input"){
-    if(e.key === "Escape") closeDrawer();
-    return;
-  }
-  if(e.code === "Space" || e.key === " "){ e.preventDefault(); startDraw(); }
-  if(e.key === "Escape") closeDrawer();
-});
-
-// 画面サイズが変わったら決定表示を再フィット
-let rz = null;
-window.addEventListener("resize", ()=>{
-  clearTimeout(rz);
-  rz = setTimeout(()=>{ if(!spinning) setText(el.themeText.textContent, true); }, 120);
-});
-
-/* ============================================================
-   8. 同期
-   ・Netlifyに置いたサイトとして開いた場合 → /api/kuji（Netlify Blobs）
-     リンクを開いた全員が最初から自動で同期されます。操作は不要です。
-   ・それ以外（ファイルを直接開いた等） → このブラウザ内に保存（任意）
-   ============================================================ */
-const API     = "/api/kuji";
-const PULL_MS = 4000;            // 他の人の変更を取りに行く間隔
-const LKEY    = "kuji:data";     // 端末内保存のキー
-const SHAREKEY = "kuji:shareOn"; // 共有モードでのスイッチ状態（端末ごと）
-
-let syncOn    = false;
-let autoSync  = false;           // 公開URLで開いたときは常時オン
-let backend   = null;            // "server" | "local" | null
-let pushTimer = null;
-let pullTimer = null;
-let applying  = false;           // 受信内容を反映している最中
-let stamp     = 0;               // このページが持つデータの更新時刻
-
-function pref(k, d){ try{ const v = localStorage.getItem(k); return v === null ? d : v; }catch(e){ return d; } }
-function setPref(k, v){ try{ localStorage.setItem(k, v); }catch(e){} }
-
-function syncSay(msg, warn){
-  el.syncStatus.textContent = msg || "";
-  el.syncStatus.classList.toggle("warn", !!warn);
-}
-function setBadge(ok, text){
-  el.syncBadge.hidden = false;
-  el.syncBadge.textContent = text;
-  el.syncBadge.classList.toggle("off", !ok);
-}
-function nowLabel(){
-  const d = new Date();
-  return ("0"+d.getHours()).slice(-2)+":"+("0"+d.getMinutes()).slice(-2);
-}
-
-/* --- 保存先ごとの読み書き --- */
-async function readRemote(){
-  try{
-    if(backend === "server"){
-      const r = await fetch(API, { cache:"no-store" });
-      if(!r.ok) throw new Error(r.status);
-      return await r.json();
+  function updateMeta(msg){
+    const left = pool().length;
+    metaEl.innerHTML = msg
+      ? msg
+      : `残りの話題 <em>${left}</em> ／ ${filter === 'すべて' ? 500 : 50}`;
+    drawBtn.disabled = drawing || left === 0;
+    if (left === 0 && !drawing){
+      metaEl.innerHTML = 'このカテゴリは出しきりました。別のカテゴリを選んでください';
     }
-    if(backend === "local"){
-      const v = localStorage.getItem(LKEY);
-      return v ? JSON.parse(v) : null;
-    }
-  }catch(e){ return undefined; }   // undefined = 通信失敗、null = 中身なし
-  return null;
-}
-
-async function writeRemote(){
-  const payload = {
-    themes: themes,
-    drawn: drawn,
-    exclude: el.optExclude.checked,
-    updatedAt: Date.now()
-  };
-  stamp = payload.updatedAt;
-  try{
-    if(backend === "server"){
-      const r = await fetch(API, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify(payload)
-      });
-      if(!r.ok) throw new Error(r.status);
-      return true;
-    }
-    if(backend === "local"){
-      localStorage.setItem(LKEY, JSON.stringify(payload));
-      return true;
-    }
-  }catch(e){ return false; }
-  return false;
-}
-
-function localCopy(){
-  const payload = { themes:themes, drawn:drawn, exclude:el.optExclude.checked, updatedAt:Date.now() };
-  try{ localStorage.setItem(LKEY, JSON.stringify(payload)); }catch(e){}
-}
-function readLocalCopy(){
-  try{ const v = localStorage.getItem(LKEY); return v ? JSON.parse(v) : null; }catch(e){ return null; }
-}
-function dropLocalCopy(){ try{ localStorage.removeItem(LKEY); }catch(e){} }
-
-function schedulePush(){
-  if(applying || !backend) return;
-  if(autoSync && !syncOn){            // 共有オフ：他の端末には送らず、この端末にだけ残す
-    clearTimeout(pushTimer);
-    pushTimer = setTimeout(localCopy, 800);
-    return;
-  }
-  if(!syncOn) return;
-  clearTimeout(pushTimer);
-  pushTimer = setTimeout(async ()=>{
-    const ok = await writeRemote();
-    syncSay(ok ? "保存しました（"+nowLabel()+"）"
-               : "保存できませんでした。通信状態を確認してください。", !ok);
-  }, 800);
-}
-
-function applyRemote(data){
-  applying = true;
-  themes = Array.isArray(data.themes) ? data.themes.slice() : [];
-  drawn  = Array.isArray(data.drawn)  ? data.drawn.slice()  : [];
-  if(typeof data.exclude === "boolean") el.optExclude.checked = data.exclude;
-  stamp = data.updatedAt || Date.now();
-  render();
-  applying = false;
-  // 他の人の操作で、いま見ている札（決定済みのテーマ）が消えないようにする
-  if(!spinning){
-    const showingResult = el.seal.classList.contains("on");
-    if(!showingResult) resetStage();
-  }
-}
-
-async function pullOnce(silent){
-  if(!syncOn || !backend || spinning) return;
-  const data = await readRemote();
-  if(data === undefined){
-    if(autoSync) setBadge(false, "接続待ち");
-    if(!silent) syncSay("接続できませんでした。", true);
-    return;
-  }
-  if(autoSync) setBadge(true, "同期中");
-  if(!data){ if(!silent) syncSay("まだ何も保存されていません。"); return; }
-  if((data.updatedAt || 0) > stamp){
-    applyRemote(data);
-    syncSay("他の人の変更を読み込みました（"+nowLabel()+"）");
-  }else if(!silent){
-    syncSay("最新の状態です（"+nowLabel()+"）");
-  }
-}
-
-function startPull(){ clearInterval(pullTimer); pullTimer = setInterval(()=>pullOnce(true), PULL_MS); }
-function stopPull(){ clearInterval(pullTimer); pullTimer = null; }
-
-// 手元の内容と共有中の内容が同じかどうか
-function sameAsShared(data){
-  return JSON.stringify(data.themes || []) === JSON.stringify(themes)
-      && JSON.stringify(data.drawn  || []) === JSON.stringify(drawn);
-}
-
-/* --- 公開URLでのスイッチ（タブレットとスマホの併用など） --- */
-async function setShare(on){
-  setPref(SHAREKEY, on ? "1" : "0");
-
-  if(!on){
-    syncOn = false;
-    stopPull(); clearTimeout(pushTimer);
-    localCopy();                      // いま画面にある内容をこの端末に残す
-    setBadge(false, "同期オフ");
-    syncSay("この端末だけで操作します。ここでの変更は他の端末に反映されません。");
-    return;
   }
 
-  syncOn = true;
-  dropLocalCopy();                    // 共有に戻るので、端末内の控えは持ち越さない
-  const data = await readRemote();
-  if(data === undefined){
-    setBadge(false, "接続待ち");
-    syncSay("接続できませんでした。接続が戻り次第、自動で同期します。", true);
-    startPull();
-    return;
+  function paint(i){
+    catEl.textContent = ALL_THEMES[i].category;
+    themeEl.textContent = ALL_THEMES[i].text;
   }
 
-  if(data && Array.isArray(data.themes) && data.themes.length && !sameAsShared(data)){
-    // オフの間に内容が食い違った場合だけ、どちらに合わせるかを確認する
-    const ok = confirm(
-      "共有中のくじがあります（テーマ "+data.themes.length+"件）。\n\n" +
-      "「OK」で共有中の内容に合わせます。\n" +
-      "「キャンセル」でこの端末の内容を全員に反映します。");
-    if(ok){
-      applyRemote(data);
-      syncSay("共有中のくじに合わせました（"+nowLabel()+"）");
-    }else{
-      const w = await writeRemote();
-      syncSay(w ? "この端末の内容を全員に反映しました（"+nowLabel()+"）" : "保存できませんでした。", !w);
-    }
-  }else if(data && Array.isArray(data.themes) && data.themes.length){
-    stamp = data.updatedAt || stamp;   // 同じ内容なので読み直さない
-    syncSay("同期を再開しました（"+nowLabel()+"）");
-  }else{
-    const w = await writeRemote();
-    syncSay(w ? "同期を再開しました（"+nowLabel()+"）" : "保存できませんでした。", !w);
-  }
-
-  setBadge(true, "同期中");
-  startPull();
-}
-
-async function setSync(on){
-  if(autoSync) return setShare(on);    // 公開URLでは共有のオン・オフとして扱う
-  if(on && !backend){
-    el.optSync.checked = false;
-    syncSay("この環境では保存できないため、同期は使えません。", true);
-    return;
-  }
-  syncOn = on;
-  setPref("kuji:syncOn", on ? "1" : "0");
-
-  if(!on){
-    stopPull(); clearTimeout(pushTimer);
-    syncSay("同期をオフにしました。この後の変更は保存されません。");
-    return;
-  }
-
-  const data = await readRemote();
-  if(data === undefined){
-    syncSay("接続できませんでした。しばらくしてからもう一度お試しください。", true);
-    return;
-  }
-  if(data && Array.isArray(data.themes) && data.themes.length){
-    const ok = confirm(
-      "保存済みのくじがあります（テーマ "+data.themes.length+"件）。\n\n" +
-      "「OK」で保存済みの内容を読み込みます。\n" +
-      "「キャンセル」でいまの内容を保存し、保存済みの内容を上書きします。");
-    if(ok){
-      applyRemote(data);
-      syncSay("保存済みのくじを読み込みました（"+nowLabel()+"）");
-    }else{
-      const w = await writeRemote();
-      syncSay(w ? "いまの内容で上書きしました（"+nowLabel()+"）" : "保存できませんでした。", !w);
-    }
-  }else{
-    const w = await writeRemote();
-    syncSay(w ? "同期をオンにしました。保存しました（"+nowLabel()+"）" : "保存できませんでした。", !w);
-  }
-  startPull();
-}
-
-/* --- 保存先の判定 --- */
-async function detectBackend(){
-  if(location.protocol === "http:" || location.protocol === "https:"){
-    try{
-      const r = await fetch(API, { cache:"no-store" });
-      if(r.ok) return "server";
-    }catch(e){ /* サーバーがなければ端末内保存へ */ }
-  }
-  try{ localStorage.setItem("__k","1"); localStorage.removeItem("__k"); return "local"; }
-  catch(e){ return null; }
-}
-
-// 公開URLを開いた人は、最初から同じくじを見る
-async function bootstrapShared(){
-  const data = await readRemote();
-  if(data === undefined){
-    setBadge(false, "接続待ち");
-    syncSay("サーバーに接続できませんでした。接続が戻り次第、自動で同期します。", true);
-    return;
-  }
-  if(data && Array.isArray(data.themes) && data.themes.length){
-    applyRemote(data);                       // すでに誰かが登録した内容をそのまま表示
-    setBadge(true, "同期中");
-    syncSay("みんなのくじを読み込みました（"+nowLabel()+"）");
-  }else{
-    const ok = await writeRemote();          // まだ何も無ければ、いまの内容を全員の初期値にする
-    setBadge(ok, ok ? "同期中" : "接続待ち");
-    syncSay(ok ? "このリンクを開いた全員と同期しています（"+nowLabel()+"）"
-               : "サーバーに保存できませんでした。", !ok);
-  }
-}
-
-async function initSync(){
-  backend = await detectBackend();
-
-  if(backend === "server"){
-    // 公開URLとして開かれた場合は、スイッチを押さなくても最初から同期される。
-    // スイッチは残してあり、オフにするとその端末だけ切り離せる。
-    autoSync = true;
-    el.syncTitle.textContent = "くじをみんなと同期する";
-    el.syncNote.textContent  =
-      "オンの間、このリンクを開いた全員と同じテーマ・履歴になります。手持ちの端末を持ち替えても続きから使えます。";
-    el.syncAuto.hidden = false;
-
-    // 画面に戻ってきたときは、待たずに最新を取りに行く
-    document.addEventListener("visibilitychange", ()=>{ if(!document.hidden) pullOnce(true); });
-    window.addEventListener("focus", ()=>pullOnce(true));
-
-    if(pref(SHAREKEY, "1") === "0"){        // この端末で明示的にオフにしていた場合
-      el.optSync.checked = false;
-      syncOn = false;
-      const copy = readLocalCopy();         // オフ中に編集した内容を復元する
-      if(copy && Array.isArray(copy.themes) && copy.themes.length){
-        applyRemote(copy);
-        stamp = 0;                          // 同期を再開したら共有側を読み直す
-      }
-      setBadge(false, "同期オフ");
-      syncSay("この端末は同期していません。上のスイッチでオンにできます。");
+  function renderHistory(){
+    histEl.innerHTML = '';
+    if (!history.length){
+      histEl.innerHTML = '<li class="empty">まだ引いていません</li>';
       return;
     }
-
-    el.optSync.checked = true;
-    syncOn = true;
-    setBadge(true, "同期中");
-    await bootstrapShared();
-    startPull();
-    return;
+    history.forEach((i, n) => {
+      const li = document.createElement('li');
+      li.innerHTML =
+        `<span class="no">${String(history.length - n).padStart(2,'0')}</span>` +
+        `<span>${ALL_THEMES[i].text}</span>` +
+        `<span class="tag" style="margin-left:auto">${ALL_THEMES[i].category}</span>`;
+      histEl.appendChild(li);
+    });
   }
 
-  if(backend === "local"){
-    el.syncNote.textContent =
-      "サーバーに接続できないため、このブラウザ内に保存します（次に開いたとき続きから使えます）。";
-  }else{
-    el.syncNote.textContent = "この環境では保存できません。";
-    el.optSync.disabled = true;
-    return;
+  function draw(){
+    const candidates = pool();
+    if (!candidates.length || drawing) return;
+
+    drawing = true;
+    hasDrawn = true;
+    drawBtn.disabled = true;
+    drawBtn.textContent = '選んでいます';
+    frame.classList.remove('is-settled');
+    frame.classList.add('is-drawing');
+    updateMeta('&nbsp;');
+
+    const winner = candidates[Math.floor(Math.random() * candidates.length)];
+    const start = performance.now();
+    let nextAt = start;
+
+    function tick(now){
+      if (now >= nextAt){
+        paint(candidates[Math.floor(Math.random() * candidates.length)]);
+        const p = Math.min((now - start) / DURATION, 1);
+        const eased = 1 - Math.pow(1 - p, 3);
+        nextAt = now + FAST + (SLOW - FAST) * eased;
+      }
+      if (now - start < DURATION){
+        requestAnimationFrame(tick);
+      } else {
+        finish(winner);
+      }
+    }
+    requestAnimationFrame(tick);
   }
 
-  if(pref("kuji:syncOn","0") === "1"){
-    el.optSync.checked = true;
-    setSync(true);
+  function finish(i){
+    used.add(i);
+    history.unshift(i);
+    if (history.length > 10) history.pop();
+    paint(i);
+    frame.classList.remove('is-drawing');
+    void frame.offsetWidth;
+    frame.classList.add('is-settled');
+    drawing = false;
+    drawBtn.textContent = 'もう一度引く';
+    renderHistory();
+    updateMeta();
   }
-}
 
-el.optSync.addEventListener("change", ()=>setSync(el.optSync.checked));
-$("btnSyncNow").addEventListener("click", async ()=>{
-  if(!el.optSync.checked){ syncSay("先に上のスイッチをオンにしてください。", true); return; }
-  await pullOnce(false);
-  const ok = await writeRemote();
-  if(ok) syncSay("同期しました（"+nowLabel()+"）");
-});
-
-/* 起動 */
-render();
-resetStage();
-initSync();
+  drawBtn.addEventListener('click', draw);
+  updateMeta();
+})();
 </script>
 </body>
 </html>

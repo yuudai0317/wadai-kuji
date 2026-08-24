@@ -3,13 +3,3 @@
 [build]
   publish = "."
   command = ""
-
-[functions]
-  directory = "netlify/functions"
-  node_bundler = "esbuild"
-
-# くじの同期APIはキャッシュさせない
-[[headers]]
-  for = "/api/*"
-  [headers.values]
-    Cache-Control = "no-store"
