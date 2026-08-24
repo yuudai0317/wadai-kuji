@@ -25,6 +25,7 @@
 }
 
 *{box-sizing:border-box;}
+[hidden]{display:none !important;}   /* .toggle等のdisplay指定に負けないようにする */
 html,body{height:100%;margin:0;}
 body{
   background:
@@ -60,6 +61,13 @@ button,input,textarea{font-family:inherit;}
   font-size:clamp(10px,.85vw,12px);letter-spacing:.34em;
   color:var(--muted);text-transform:uppercase;
 }
+/* 同期状態のバッジ（見出しの右） */
+.badge{
+  font-size:clamp(9px,.78vw,11px);letter-spacing:.18em;white-space:nowrap;
+  color:var(--brass);border:1px solid rgba(217,169,63,.45);
+  border-radius:999px;padding:.3em .9em;
+}
+.badge.off{color:#E39082;border-color:rgba(227,144,130,.45);}
 .counts{display:flex;gap:clamp(10px,1.4vw,22px);align-items:baseline;}
 .count{display:flex;align-items:baseline;gap:.4em;}
 .count i{
@@ -218,6 +226,14 @@ textarea::placeholder{color:#527069;}
 }
 .notice.warn{color:#E39082;}
 
+/* 自動同期の説明（サーバー上で開いたとき） */
+.auto{
+  margin:0;padding:12px 13px;border-radius:6px;
+  background:#0A2220;border:1px solid var(--ink-3);
+  font-size:12.5px;line-height:1.75;color:var(--muted);
+}
+.auto b{display:block;margin-bottom:4px;color:var(--brass);font-size:13px;letter-spacing:.06em;}
+
 /* テーマ一覧（各行がそのまま編集欄） */
 .list{list-style:none;margin:0;padding:0;}
 .list li{
@@ -307,6 +323,7 @@ textarea::placeholder{color:#527069;}
   <div class="top">
     <div class="brand">
       <b>トークテーマくじ引き</b><span>merit</span>
+      <span class="badge" id="syncBadge" hidden></span>
     </div>
     <div class="counts">
       <div class="count"><i>残り</i><b id="cRemain">0</b></div>
@@ -374,11 +391,15 @@ textarea::placeholder{color:#527069;}
         <span class="tx">効果音を鳴らす
           <small>回転中のカチカチ音と、決定音が鳴ります。</small></span>
       </label>
-      <label class="toggle">
+      <label class="toggle" id="syncToggleRow">
         <input type="checkbox" id="optSync">
-        <span class="tx">くじをクラウドに同期する
-          <small id="syncNote">テーマと履歴を保存し、同じURLを開いた他の端末にも反映します。</small></span>
+        <span class="tx">くじの内容を保存する
+          <small id="syncNote">テーマと履歴を保存します。</small></span>
       </label>
+      <p class="auto" id="syncAuto" hidden>
+        <b>自動で同期しています</b>
+        このリンクを開いた全員が同じテーマ・履歴を見ています。誰かがテーマを変えたりくじを引いたりすると、数秒で全員の画面に反映されます。操作は不要です。
+      </p>
       <div class="row">
         <button class="btn ghost" id="btnSyncNow">今すぐ同期</button>
       </div>
@@ -432,7 +453,8 @@ const el = {
   list:$("list"), hist:$("hist"), input:$("input"),
   drawer:$("drawer"), scrim:$("scrim"),
   optExclude:$("optExclude"), optSound:$("optSound"),
-  optSync:$("optSync"), syncNote:$("syncNote"), syncStatus:$("syncStatus")
+  optSync:$("optSync"), syncNote:$("syncNote"), syncStatus:$("syncStatus"),
+  syncToggleRow:$("syncToggleRow"), syncAuto:$("syncAuto"), syncBadge:$("syncBadge")
 };
 
 /* ============================================================
@@ -840,17 +862,17 @@ window.addEventListener("resize", ()=>{
 });
 
 /* ============================================================
-   8. クラウド同期
-   スイッチひとつで、テーマと履歴を保存・共有します。
+   8. 同期
    ・Netlifyに置いたサイトとして開いた場合 → /api/kuji（Netlify Blobs）
-     同じURLを開いた端末どうしで、同じ内容が出ます。
-   ・それ以外（ファイルを直接開いた等） → このブラウザ内に保存
+     リンクを開いた全員が最初から自動で同期されます。操作は不要です。
+   ・それ以外（ファイルを直接開いた等） → このブラウザ内に保存（任意）
    ============================================================ */
 const API     = "/api/kuji";
-const PULL_MS = 5000;            // 他端末の変更を取りに行く間隔
+const PULL_MS = 4000;            // 他の人の変更を取りに行く間隔
 const LKEY    = "kuji:data";     // 端末内保存のキー
 
 let syncOn    = false;
+let autoSync  = false;           // 公開URLで開いたときは常時オン
 let backend   = null;            // "server" | "local" | null
 let pushTimer = null;
 let pullTimer = null;
@@ -863,6 +885,11 @@ function setPref(k, v){ try{ localStorage.setItem(k, v); }catch(e){} }
 function syncSay(msg, warn){
   el.syncStatus.textContent = msg || "";
   el.syncStatus.classList.toggle("warn", !!warn);
+}
+function setBadge(ok, text){
+  el.syncBadge.hidden = false;
+  el.syncBadge.textContent = text;
+  el.syncBadge.classList.toggle("off", !ok);
 }
 function nowLabel(){
   const d = new Date();
@@ -929,17 +956,26 @@ function applyRemote(data){
   stamp = data.updatedAt || Date.now();
   render();
   applying = false;
-  if(!spinning) resetStage();
+  // 他の人の操作で、いま見ている札（決定済みのテーマ）が消えないようにする
+  if(!spinning){
+    const showingResult = el.seal.classList.contains("on");
+    if(!showingResult) resetStage();
+  }
 }
 
 async function pullOnce(silent){
   if(!syncOn || !backend || spinning) return;
   const data = await readRemote();
-  if(data === undefined){ if(!silent) syncSay("接続できませんでした。", true); return; }
+  if(data === undefined){
+    if(autoSync) setBadge(false, "接続待ち");
+    if(!silent) syncSay("接続できませんでした。", true);
+    return;
+  }
+  if(autoSync) setBadge(true, "同期中");
   if(!data){ if(!silent) syncSay("まだ何も保存されていません。"); return; }
   if((data.updatedAt || 0) > stamp){
     applyRemote(data);
-    syncSay("他の端末の変更を読み込みました（"+nowLabel()+"）");
+    syncSay("他の人の変更を読み込みました（"+nowLabel()+"）");
   }else if(!silent){
     syncSay("最新の状態です（"+nowLabel()+"）");
   }
@@ -949,6 +985,7 @@ function startPull(){ clearInterval(pullTimer); pullTimer = setInterval(()=>pull
 function stopPull(){ clearInterval(pullTimer); pullTimer = null; }
 
 async function setSync(on){
+  if(autoSync) return;                 // 公開URLでは常時オンなので操作を受け付けない
   if(on && !backend){
     el.optSync.checked = false;
     syncSay("この環境では保存できないため、同期は使えません。", true);
@@ -999,13 +1036,46 @@ async function detectBackend(){
   catch(e){ return null; }
 }
 
+// 公開URLを開いた人は、最初から同じくじを見る
+async function bootstrapShared(){
+  const data = await readRemote();
+  if(data === undefined){
+    setBadge(false, "接続待ち");
+    syncSay("サーバーに接続できませんでした。接続が戻り次第、自動で同期します。", true);
+    return;
+  }
+  if(data && Array.isArray(data.themes) && data.themes.length){
+    applyRemote(data);                       // すでに誰かが登録した内容をそのまま表示
+    setBadge(true, "同期中");
+    syncSay("みんなのくじを読み込みました（"+nowLabel()+"）");
+  }else{
+    const ok = await writeRemote();          // まだ何も無ければ、いまの内容を全員の初期値にする
+    setBadge(ok, ok ? "同期中" : "接続待ち");
+    syncSay(ok ? "このリンクを開いた全員と同期しています（"+nowLabel()+"）"
+               : "サーバーに保存できませんでした。", !ok);
+  }
+}
+
 async function initSync(){
   backend = await detectBackend();
 
   if(backend === "server"){
-    el.syncNote.textContent =
-      "テーマと履歴を保存し、同じURLを開いた他の端末にも反映します。";
-  }else if(backend === "local"){
+    // 公開URLとして開かれた場合は、スイッチを押さなくても全員が同期される
+    autoSync = true;
+    syncOn   = true;
+    el.optSync.checked = true;
+    el.syncToggleRow.hidden = true;
+    el.syncAuto.hidden = false;
+    setBadge(true, "同期中");
+    await bootstrapShared();
+    startPull();
+    // 画面に戻ってきたときは、待たずに最新を取りに行く
+    document.addEventListener("visibilitychange", ()=>{ if(!document.hidden) pullOnce(true); });
+    window.addEventListener("focus", ()=>pullOnce(true));
+    return;
+  }
+
+  if(backend === "local"){
     el.syncNote.textContent =
       "サーバーに接続できないため、このブラウザ内に保存します（次に開いたとき続きから使えます）。";
   }else{
@@ -1022,7 +1092,7 @@ async function initSync(){
 
 el.optSync.addEventListener("change", ()=>setSync(el.optSync.checked));
 $("btnSyncNow").addEventListener("click", async ()=>{
-  if(!el.optSync.checked){ syncSay("先に同期をオンにしてください。", true); return; }
+  if(!autoSync && !el.optSync.checked){ syncSay("先に保存をオンにしてください。", true); return; }
   await pullOnce(false);
   const ok = await writeRemote();
   if(ok) syncSay("同期しました（"+nowLabel()+"）");
