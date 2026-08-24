@@ -11,6 +11,7 @@
 | --- | --- |
 | `index.html` | アプリ本体（HTML1枚で完結。外部ライブラリ・API・ビルド不要） |
 | `netlify.toml` | 公開設定（`index.html` をそのまま配信するだけ） |
+| `setup-500theme.sh` | GitHub リポジトリ作成〜Netlify 公開までのセットアップスクリプト |
 
 サーバー処理もデータベースもありません。**同期機能はありません**ので、
 各端末が独立して動作します（引いた履歴はその端末の画面だけに残ります）。
@@ -42,19 +43,50 @@
 
 問いかけの重複はありません。
 
-## 公開手順（GitHub 連携・所要5分ほど）
+## 公開手順
 
-1. [Netlify](https://app.netlify.com/) にログイン（GitHub アカウントでログインすると連携が楽です）。
-2. **Add new site → Import an existing project → GitHub** を選び、リポジトリ `yuudai0317/wadai-kuji` を選択。
-   - 初回は *Configure the Netlify app on GitHub* が表示されるので、このリポジトリへのアクセスを許可します。
-3. ブランチと設定を確認します。`netlify.toml` があるので、基本はそのままで大丈夫です。
-   - Branch to deploy: 公開したいブランチ
+### A. スクリプトでまとめて行う（おすすめ）
+
+このリポジトリを手元にクローンして、同梱の `setup-500theme.sh` を実行します。
+`gh` CLI（[cli.github.com](https://cli.github.com/)）にログイン済みであることが前提です。
+
+```bash
+gh auth login                          # 未ログインの場合のみ
+bash setup-500theme.sh                 # GitHub に 500Theme を作成して push
+bash setup-500theme.sh --netlify       # 続けて Netlify にデプロイし公開URLを表示
+```
+
+サイト名を決めたい場合:
+
+```bash
+SITE_NAME=merit-500theme bash setup-500theme.sh --netlify
+# → https://merit-500theme.netlify.app
+```
+
+### B. 画面から手動で行う（所要5分ほど）
+
+1. GitHub で新しいリポジトリ **`500Theme`** を作成します（public / README なしの空リポジトリ）。
+2. 手元で `index.html` `netlify.toml` `README.md` を push します。
+
+   ```bash
+   git init -b main
+   git add index.html netlify.toml README.md
+   git commit -m "話題のくじ（500問）を公開する"
+   git remote add origin https://github.com/<あなたのID>/500Theme.git
+   git push -u origin main
+   ```
+
+3. [Netlify](https://app.netlify.com/) にログイン（GitHub アカウントでのログインが楽です）。
+4. **Add new site → Import an existing project → GitHub** を選び、リポジトリ `500Theme` を選択。
+   - 初回は *Configure the Netlify app on GitHub* が出るので、このリポジトリへのアクセスを許可します。
+5. 設定を確認します。`netlify.toml` があるので基本はそのままで大丈夫です。
+   - Branch to deploy: `main`
    - Build command: **空欄**
    - Publish directory: **`.`**
-4. **Deploy site** を押すと、1分ほどで `https://<サイト名>.netlify.app` が発行されます。これが公開リンクです。
-5. サイト名は **Site configuration → Change site name** で好きな名前に変更できます（例: `merit-wadai-kuji.netlify.app`）。
+6. **Deploy site** を押すと、1分ほどで `https://<サイト名>.netlify.app` が発行されます。これが公開リンクです。
+7. サイト名は **Site configuration → Change site name** で変更できます（例: `merit-500theme.netlify.app`）。
 
-以降は、このブランチに push するたびに自動で再デプロイされます。
+以降は `main` に push するたびに自動で再デプロイされます。
 
 ## テーマを増やす・書き換える
 
