@@ -30,7 +30,7 @@ cp "$SRC_DIR/index.html" "$SRC_DIR/netlify.toml" "$SRC_DIR/README.md" "$WORK_DIR
 cd "$WORK_DIR"
 git init -q -b main
 git add .
-git commit -q -m "話題のくじ（500問）を公開する"
+git commit -q -m "話題のくじ（100問）を公開する"
 
 # --- リポジトリ作成 + push ---
 if gh repo view "$OWNER/$REPO_NAME" >/dev/null 2>&1; then
@@ -41,7 +41,7 @@ else
   echo "==> $OWNER/$REPO_NAME を作成します（public）"
   gh repo create "$OWNER/$REPO_NAME" \
     --public \
-    --description "話題のくじ — 雑談が続く500の問いかけ（HTML1枚の静的サイト）" \
+    --description "話題のくじ — 雑談が盛り上がる100の問いかけ（HTML1枚の静的サイト）" \
     --source=. --remote=origin --push
 fi
 echo "==> リポジトリ: https://github.com/$OWNER/$REPO_NAME"
