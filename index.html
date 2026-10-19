@@ -211,6 +211,23 @@ textarea{
   padding:12px 13px;font-size:13.5px;line-height:1.85;
 }
 textarea::placeholder{color:#527069;}
+
+/* 入力フィールド（公開URL・共有リンク） */
+.fieldLabel{
+  display:block;margin:13px 0 5px;
+  font-size:10.5px;letter-spacing:.2em;color:var(--muted);
+}
+.field{
+  width:100%;background:#0A2220;color:var(--text-light);
+  border:1px solid var(--ink-3);border-radius:6px;
+  padding:10px 12px;font-size:13px;line-height:1.7;
+}
+.field::placeholder{color:#527069;}
+textarea.field{min-height:0;resize:vertical;}
+.mono{
+  font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  font-size:11.5px;line-height:1.6;word-break:break-all;
+}
 .row{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;}
 .notice{
   margin-top:10px;font-size:12px;line-height:1.7;color:var(--brass);
@@ -375,14 +392,28 @@ textarea::placeholder{color:#527069;}
           <small>回転中のカチカチ音と、決定音が鳴ります。</small></span>
       </label>
       <label class="toggle">
-        <input type="checkbox" id="optSync">
-        <span class="tx">くじを保存する
-          <small id="syncNote">テーマと履歴を保存し、次に開いたときも同じ内容で使えます。</small></span>
+        <input type="checkbox" id="optSave" checked>
+        <span class="tx">この端末に保存する
+          <small id="saveNote">テーマ・履歴・いま出ているテーマを保存します。次に開いたときは、引いた結果が出たままの状態から続けられます。</small></span>
       </label>
       <div class="row">
-        <button class="btn ghost" id="btnSyncNow">今すぐ保存</button>
+        <button class="btn ghost" id="btnSaveNow">今すぐ保存</button>
       </div>
-      <p class="notice" id="syncStatus"></p>
+      <p class="notice" id="saveStatus"></p>
+    </div>
+
+    <div class="sect">
+      <h3>別の端末と同じテーマにする</h3>
+      <p class="hint">共有リンクにはテーマと抽選の設定が入っています。配った相手がリンクを開くだけで同じテーマになり、受け取る側での設定は要りません。テーマを直したら、リンクを作り直して配り直してください。</p>
+      <label class="fieldLabel" for="shareBase">公開URL</label>
+      <input type="url" id="shareBase" class="field" placeholder="https://yuudai0317.github.io/wadai-kuji/">
+      <label class="fieldLabel" for="shareUrl">共有リンク</label>
+      <textarea id="shareUrl" class="field mono" rows="3" readonly></textarea>
+      <div class="row">
+        <button class="btn primary" id="btnCopyShare">共有リンクをコピー</button>
+        <button class="btn ghost" id="btnOpenShare">開いて確認</button>
+      </div>
+      <p class="notice" id="shareStatus"></p>
     </div>
 
     <div class="sect">
@@ -421,6 +452,7 @@ let drawn   = [];      // 出たテーマ（履歴と除外に使う）
 let spinning = false;
 let timer    = null;
 let lastShown = null;
+let current  = null;   // いま札に出ている決定済みのテーマ（null なら待機中）
 
 const $ = id => document.getElementById(id);
 const el = {
@@ -430,7 +462,8 @@ const el = {
   list:$("list"), hist:$("hist"), input:$("input"),
   drawer:$("drawer"), scrim:$("scrim"),
   optExclude:$("optExclude"), optSound:$("optSound"),
-  optSync:$("optSync"), syncNote:$("syncNote"), syncStatus:$("syncStatus")
+  optSave:$("optSave"), saveNote:$("saveNote"), saveStatus:$("saveStatus"),
+  shareBase:$("shareBase"), shareUrl:$("shareUrl"), shareStatus:$("shareStatus")
 };
 
 /* ============================================================
@@ -537,8 +570,9 @@ function render(){
     });
   }
 
-  // 内容が変わったら保存を予約
-  if(typeof schedulePush === "function") schedulePush();
+  // 内容が変わったら保存を予約し、共有リンクも作り直す
+  if(typeof scheduleSave  === "function") scheduleSave();
+  if(typeof refreshShare === "function") refreshShare();
 }
 
 function registerThemes(mode){
@@ -651,6 +685,7 @@ function beep(freq, dur, vol){
    6. 抽選
    ============================================================ */
 function resetStage(){
+  current = null;
   el.seal.classList.remove("on");
   el.fuda.classList.remove("decided");
   el.themeText.classList.remove("pop");
@@ -729,24 +764,21 @@ function startDraw(){
   tick();
 }
 
-function decide(result){
-  clearTimeout(timer);
-  timer = null;
-  spinning = false;
+// 決まったテーマを札に出したままにする。
+// 再読み込み後の復元でも使うため、演出の有無を animate で切り替える。
+function showDecided(result, animate){
+  current = result;
   el.fuda.classList.remove("spinning");
   el.fuda.classList.add("decided");
-
-  el.themeText.classList.remove("flick");
+  el.themeText.classList.remove("idle","flick","pop");
   setText(result, true);
-  void el.themeText.offsetWidth;
-  el.themeText.classList.add("pop");
+  if(animate){
+    void el.themeText.offsetWidth;
+    el.themeText.classList.add("pop");
+  }
+  el.seal.classList.remove("on");
+  void el.seal.offsetWidth;
   el.seal.classList.add("on");
-
-  beep(784, 0.14, 0.11);
-  setTimeout(()=>beep(1175, 0.3, 0.09), 120);
-
-  drawn.push(result);
-  render();
 
   el.start.disabled = false;
   el.start.textContent = "もう一度";
@@ -754,6 +786,20 @@ function decide(result){
   el.stage.dataset.hint = (el.optExclude.checked && left === 0)
     ? "これで全テーマ終了です"
     : "画面またはスペースキーでもう一度";
+}
+
+function decide(result){
+  clearTimeout(timer);
+  timer = null;
+  spinning = false;
+
+  drawn.push(result);
+  showDecided(result, true);
+
+  beep(784, 0.14, 0.11);
+  setTimeout(()=>beep(1175, 0.3, 0.09), 120);
+
+  render();
 }
 
 /* ============================================================
@@ -839,89 +885,111 @@ window.addEventListener("resize", ()=>{
 });
 
 /* ============================================================
-   8. 保存
-   テーマ・履歴・除外設定をブラウザ内に保存します。
-   次に同じ端末の同じブラウザで開いたとき、続きから使えます。
+   8. 保存と共有
+
+   保存：テーマ・履歴・いま出ているテーマを、この端末のブラウザに残します。
+         次に開いたときは、引いた結果が札に出たままの状態から続けられます。
+
+   共有：テーマと抽選の設定をURLの末尾（#k=…）に埋め込んだ共有リンクを作ります。
+         受け取った人はリンクを開くだけで同じテーマになり、設定作業は要りません。
+         ※履歴は端末ごとに別です。複数端末の「誰が何を引いたか」を
+           リアルタイムに突き合わせるにはサーバが必要なので、ここでは扱いません。
    ============================================================ */
-const SYNC_KEY  = "kuji:data";
-const PULL_MS   = 6000;          // 別タブの変更を取りに行く間隔
-let syncOn      = false;
-let backend     = null;          // "local" | null
-let pushTimer   = null;
-let pullTimer   = null;
-let applying    = false;         // 受信内容を反映している最中
-let stamp       = 0;             // このページが持つデータの更新時刻
+const SAVE_KEY  = "kuji:data";
+const SAVE_FLAG = "kuji:saveOn";
+const SHARE_SIG = "kuji:shareSig";
+const BASE_KEY  = "kuji:shareBase";
+const PULL_MS   = 4000;          // 同じブラウザの別タブの変更を取りに行く間隔
+
+let saveOn    = false;
+let backend   = null;            // "local" | null
+let saveTimer = null;
+let pullTimer = null;
+let applying  = false;           // 読み込んだ内容を反映している最中
+let stamp     = 0;               // このページが持つデータの更新時刻
 
 function detectBackend(){
   try{ localStorage.setItem("__k","1"); localStorage.removeItem("__k"); return "local"; }
   catch(e){ return null; }
 }
-
-function syncSay(msg, warn){
-  el.syncStatus.textContent = msg || "";
-  el.syncStatus.classList.toggle("warn", !!warn);
+function saveSay(msg, warn){
+  el.saveStatus.textContent = msg || "";
+  el.saveStatus.classList.toggle("warn", !!warn);
+}
+function shareSay(msg, warn){
+  el.shareStatus.textContent = msg || "";
+  el.shareStatus.classList.toggle("warn", !!warn);
 }
 function nowLabel(){
   const d = new Date();
   return ("0"+d.getHours()).slice(-2)+":"+("0"+d.getMinutes()).slice(-2);
 }
 
-async function readRemote(){
+/* --- 保存 ------------------------------------------------------------ */
+function readStore(){
+  if(backend !== "local") return null;
   try{
-    if(backend === "local"){
-      const v = localStorage.getItem(SYNC_KEY);
-      return v ? JSON.parse(v) : null;
-    }
+    const v = localStorage.getItem(SAVE_KEY);
+    return v ? JSON.parse(v) : null;
   }catch(e){ return null; }
-  return null;
 }
 
-async function writeRemote(){
+function writeStore(){
+  if(backend !== "local") return false;
   const payload = {
     themes: themes,
     drawn: drawn,
+    current: current,
     exclude: el.optExclude.checked,
     updatedAt: Date.now()
   };
   stamp = payload.updatedAt;
-  const text = JSON.stringify(payload);
   try{
-    if(backend === "local") localStorage.setItem(SYNC_KEY, text);
-    else return false;
+    localStorage.setItem(SAVE_KEY, JSON.stringify(payload));
     return true;
   }catch(e){ return false; }
 }
 
-function schedulePush(){
-  if(!syncOn || applying || !backend) return;
-  clearTimeout(pushTimer);
-  pushTimer = setTimeout(async ()=>{
-    const ok = await writeRemote();
-    syncSay(ok ? "保存しました（"+nowLabel()+"）"
+function scheduleSave(){
+  if(!saveOn || applying || !backend) return;
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(()=>{
+    const ok = writeStore();
+    saveSay(ok ? "保存しました（"+nowLabel()+"）"
                : "保存できませんでした。ブラウザの設定を確認してください。", !ok);
-  }, 800);
+  }, 600);
 }
 
-function applyRemote(data){
+// 保存された内容を画面に戻す。決定済みのテーマがあれば、それを札に出したままにする。
+function applyStored(data){
   applying = true;
-  themes = Array.isArray(data.themes) ? data.themes.slice() : [];
-  drawn  = Array.isArray(data.drawn)  ? data.drawn.slice()  : [];
+  if(Array.isArray(data.themes)) themes = data.themes.slice();
+  drawn = Array.isArray(data.drawn) ? data.drawn.slice() : [];
   if(typeof data.exclude === "boolean") el.optExclude.checked = data.exclude;
   stamp = data.updatedAt || Date.now();
-  render();
   applying = false;
-  if(!spinning) resetStage();
+
+  render();
+  if(spinning) return;
+  const keep = (typeof data.current === "string" && themes.indexOf(data.current) >= 0)
+    ? data.current : null;
+  if(keep) showDecided(keep, false);
+  else     resetStage();
 }
 
-async function pullOnce(silent){
-  if(!syncOn || !backend || spinning) return;
-  const data = await readRemote();
-  if(!data){ if(!silent) syncSay("保存されたくじはまだありません。"); return; }
+// 同じブラウザの別タブで変更されていたら取り込む。
+// いま札に出ているテーマは、こちらの表示を優先して消さない。
+function pullOnce(silent){
+  if(!saveOn || !backend || spinning) return;
+  const data = readStore();
+  if(!data){ if(!silent) saveSay("保存されたくじはまだありません。"); return; }
   if((data.updatedAt || 0) > stamp){
-    applyRemote(data);
-    syncSay("別のタブの変更を読み込みました（"+nowLabel()+"）");
+    const keepLocal = current;
+    applyStored(data);
+    if(keepLocal && themes.indexOf(keepLocal) >= 0) showDecided(keepLocal, false);
+    saveSay("別のタブの変更を読み込みました（"+nowLabel()+"）");
   }else if(!silent){
-    syncSay("最新の状態です（"+nowLabel()+"）");
+    saveSay("最新の状態です（"+nowLabel()+"）");
   }
 }
 
@@ -931,68 +999,195 @@ function startPull(){
 }
 function stopPull(){ clearInterval(pullTimer); pullTimer = null; }
 
-async function setSync(on){
+function setSave(on){
   if(on && !backend){
-    el.optSync.checked = false;
-    syncSay("この環境では保存できません。", true);
+    el.optSave.checked = false;
+    saveSay("このブラウザでは保存できません。", true);
     return;
   }
-  syncOn = on;
+  saveOn = on;
+  try{ localStorage.setItem(SAVE_FLAG, on ? "1" : "0"); }catch(e){}
   if(!on){
     stopPull();
-    clearTimeout(pushTimer);
-    syncSay("保存をオフにしました。この後の変更は残りません。");
-    try{ localStorage.setItem("kuji:syncOn","0"); }catch(e){}
+    clearTimeout(saveTimer);
+    saveSay("保存をオフにしました。この後の変更は残りません。");
     return;
   }
-  try{ localStorage.setItem("kuji:syncOn","1"); }catch(e){}
-
-  const data = await readRemote();
-  if(data && Array.isArray(data.themes) && data.themes.length){
-    const ok = confirm(
-      "保存済みのくじが見つかりました（テーマ "+data.themes.length+"件）。\n\n" +
-      "「OK」で保存済みの内容を読み込みます。\n" +
-      "「キャンセル」でいまの内容を保存し、保存済みの内容を上書きします。");
-    if(ok){
-      applyRemote(data);
-      syncSay("保存済みのくじを読み込みました（"+nowLabel()+"）");
-    }else{
-      const w = await writeRemote();
-      syncSay(w ? "いまの内容で上書きしました（"+nowLabel()+"）" : "保存できませんでした。", !w);
-    }
-  }else{
-    const w = await writeRemote();
-    syncSay(w ? "保存をオンにしました（"+nowLabel()+"）" : "保存できませんでした。", !w);
-  }
+  const ok = writeStore();
+  saveSay(ok ? "保存をオンにしました（"+nowLabel()+"）" : "保存できませんでした。", !ok);
   startPull();
 }
 
-function initSync(){
-  backend = detectBackend();
-  if(backend === "local"){
-    el.syncNote.textContent =
-      "テーマと履歴をこのブラウザ内に保存します。次に同じ端末で開いたとき、続きから使えます（端末をまたぐ同期はしません）。";
-  }else{
-    el.syncNote.textContent = "この環境では保存できません。";
-    el.optSync.disabled = true;
-  }
-  let saved = null;
-  try{ saved = localStorage.getItem("kuji:syncOn"); }catch(e){}
-  if(saved === "1" && backend){ el.optSync.checked = true; setSync(true); }
+/* --- 共有リンク ------------------------------------------------------ */
+// UTF-8 を URL に置ける形（base64url）にする
+function packText(str){
+  const bytes = new TextEncoder().encode(str);
+  let bin = "";
+  for(let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+  return btoa(bin).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");
+}
+function unpackText(s){
+  s = String(s).replace(/-/g,"+").replace(/_/g,"/");
+  while(s.length % 4) s += "=";
+  const bin = atob(s);
+  const bytes = new Uint8Array(bin.length);
+  for(let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return new TextDecoder().decode(bytes);
 }
 
-el.optSync.addEventListener("change", ()=>setSync(el.optSync.checked));
-$("btnSyncNow").addEventListener("click", async ()=>{
-  if(!el.optSync.checked){ syncSay("先に保存をオンにしてください。", true); return; }
-  await pullOnce(false);
-  const ok = await writeRemote();
-  if(ok) syncSay("保存しました（"+nowLabel()+"）");
+function sharePayload(){
+  return packText(JSON.stringify({v:1, t:themes, x:el.optExclude.checked}));
+}
+
+// プレビュー枠（iframe）の中のURLは配れないので、その場合は空を返す
+function detectBase(){
+  try{
+    if(window.top !== window.self) return "";
+    return location.origin + location.pathname;
+  }catch(e){ return ""; }
+}
+
+function shareBaseValue(){
+  const typed = (el.shareBase.value || "").trim();
+  if(typed) return typed;
+  let saved = null;
+  try{ saved = localStorage.getItem(BASE_KEY); }catch(e){}
+  return (saved || detectBase() || "");
+}
+
+function refreshShare(){
+  const base = shareBaseValue();
+  if(!el.shareBase.value && base) el.shareBase.value = base;
+
+  if(!base){
+    el.shareUrl.value = "";
+    shareSay("公開URLを入力すると共有リンクを作れます（プレビュー枠の中のURLは配れません）。", true);
+    return;
+  }
+  if(themes.length === 0){
+    el.shareUrl.value = "";
+    shareSay("テーマが0件です。先にテーマを登録してください。", true);
+    return;
+  }
+  el.shareUrl.value = base.split("#")[0] + "#k=" + sharePayload();
+  shareSay("テーマ "+themes.length+"件ぶんのリンクです。");
+}
+
+function readShareFromUrl(){
+  let hash = "";
+  try{ hash = location.hash || ""; }catch(e){ return null; }
+  const m = hash.match(/[#&]k=([A-Za-z0-9_-]+)/);
+  if(!m) return null;
+  try{
+    const data = JSON.parse(unpackText(m[1]));
+    const list = Array.isArray(data.t)
+      ? data.t.filter(x => typeof x === "string" && x.trim()).map(x => x.trim())
+      : [];
+    if(list.length === 0) return null;
+    return {themes:list, exclude:(typeof data.x === "boolean" ? data.x : null), sig:m[1]};
+  }catch(e){ return null; }
+}
+
+// 共有リンクの内容を取り込む（受け取った側は何も設定しなくてよい）
+function applyShare(shared, announce){
+  applying = true;
+  themes  = shared.themes.slice();
+  drawn   = [];
+  current = null;
+  if(typeof shared.exclude === "boolean") el.optExclude.checked = shared.exclude;
+  applying = false;
+  try{ localStorage.setItem(SHARE_SIG, shared.sig); }catch(e){}
+  render();
+  resetStage();
+  if(saveOn) writeStore();
+  if(announce) saveSay("共有リンクのテーマを読み込みました（"+themes.length+"件）");
+}
+
+/* --- 起動時の読み込み ------------------------------------------------ */
+function initStore(){
+  backend = detectBackend();
+  if(!backend){
+    el.optSave.checked = false;
+    el.optSave.disabled = true;
+    el.saveNote.textContent = "このブラウザでは保存できません（履歴はこのページを開いている間だけ残ります）。";
+    saveOn = false;
+  }else{
+    let flag = null;
+    try{ flag = localStorage.getItem(SAVE_FLAG); }catch(e){}
+    saveOn = (flag !== "0");          // 既定でオン
+    el.optSave.checked = saveOn;
+  }
+
+  const shared = readShareFromUrl();
+  let sig = null;
+  try{ sig = localStorage.getItem(SHARE_SIG); }catch(e){}
+
+  if(shared && shared.sig !== sig){
+    // 初めて開いた共有リンク → そのテーマに合わせる
+    applyShare(shared, true);
+  }else{
+    const data = saveOn ? readStore() : null;
+    if(data){
+      applyStored(data);
+      saveSay("前回の状態を読み込みました（"+nowLabel()+"）");
+    }else{
+      render();
+      resetStage();
+    }
+  }
+
+  refreshShare();
+  if(saveOn) startPull();
+}
+
+/* --- 操作 ------------------------------------------------------------ */
+el.optSave.addEventListener("change", ()=>setSave(el.optSave.checked));
+$("btnSaveNow").addEventListener("click", ()=>{
+  if(!el.optSave.checked){ saveSay("先に保存をオンにしてください。", true); return; }
+  pullOnce(false);
+  const ok = writeStore();
+  saveSay(ok ? "保存しました（"+nowLabel()+"）" : "保存できませんでした。", !ok);
+});
+
+el.shareBase.addEventListener("input", ()=>{
+  const v = el.shareBase.value.trim();
+  try{ if(v) localStorage.setItem(BASE_KEY, v); }catch(e){}
+  refreshShare();
+});
+$("btnCopyShare").addEventListener("click", async ()=>{
+  refreshShare();
+  const url = el.shareUrl.value;
+  if(!url){ return; }
+  try{
+    await navigator.clipboard.writeText(url);
+    shareSay("共有リンクをコピーしました（"+nowLabel()+"）");
+  }catch(e){
+    el.shareUrl.focus();
+    el.shareUrl.select();
+    shareSay("リンクを選択しました。Ctrl/Cmd+C でコピーしてください。", true);
+  }
+});
+$("btnOpenShare").addEventListener("click", ()=>{
+  refreshShare();
+  const url = el.shareUrl.value;
+  if(!url) return;
+  const w = window.open(url, "_blank", "noopener");
+  if(!w) shareSay("ブラウザに開くのを止められました。リンクをコピーして貼り付けてください。", true);
+});
+
+// 別の共有リンクが貼られたら、その場で切り替える
+window.addEventListener("hashchange", ()=>{
+  const shared = readShareFromUrl();
+  if(!shared || spinning) return;
+  let sig = null;
+  try{ sig = localStorage.getItem(SHARE_SIG); }catch(e){}
+  if(shared.sig === sig) return;
+  applyShare(shared, true);
+  refreshShare();
 });
 
 /* 起動 */
-render();
-resetStage();
-initSync();
+initStore();
 </script>
 </body>
 </html>
