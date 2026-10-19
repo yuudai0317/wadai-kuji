@@ -1,17 +1,16 @@
-// くじの進行状況（引いた話題・履歴・カテゴリ・いま出ている話題）を保存し、
+// くじの内容（テーマ・履歴・いま出ているテーマ・設定）を保存し、
 // 同じURLを開いた端末どうしでそろえるAPI。保存先は Netlify Blobs で、
 // 追加のデータベース契約は要りません。
 //
-//   GET  /api/kuji  → 保存済みの状態（未保存なら null）
-//   POST /api/kuji  → 状態を保存（本文は JSON）
+//   GET  /api/kuji  → 保存済みのくじ（未保存なら null）
+//   POST /api/kuji  → くじを保存（本文は JSON）
 import { getStore } from "@netlify/blobs";
 
 const KEY = "state";
 
-// index.html の話題数と履歴の上限。想定外の値を弾くために持っておく。
-const THEME_COUNT = 500;
-const MAX_HISTORY = 10;
-const MAX_FILTER_LEN = 60;
+// 1件のくじが大きくなりすぎないよう、常識的な上限を設けておく
+const MAX_THEMES = 2000;
+const MAX_LEN = 500;
 
 const json = (body, status = 200) =>
   new Response(body === null ? "null" : JSON.stringify(body), {
@@ -23,25 +22,22 @@ const json = (body, status = 200) =>
   });
 
 // 他端末の書き込みを次の確認で確実に読めるよう、強い整合性で読む
-const store = () => getStore({ name: "wadai-kuji", consistency: "strong" });
+const store = () => getStore({ name: "kuji", consistency: "strong" });
 
-// 話題の番号の配列だけを通す（範囲外・重複・多すぎる件数は落とす）
-function cleanIndexes(value, max) {
+// 文字列の配列だけを通す（空行・長すぎる行・多すぎる件数は落とす）
+function cleanList(value) {
   if (!Array.isArray(value)) return [];
-  const seen = new Set();
-  const out = [];
-  for (const v of value) {
-    if (!Number.isInteger(v) || v < 0 || v >= THEME_COUNT) continue;
-    if (seen.has(v)) continue;
-    seen.add(v);
-    out.push(v);
-    if (out.length >= max) break;
-  }
-  return out;
+  return value
+    .filter((v) => typeof v === "string")
+    .map((v) => v.trim())
+    .filter((v) => v.length > 0 && v.length <= MAX_LEN)
+    .slice(0, MAX_THEMES);
 }
 
-function cleanIndex(value) {
-  return Number.isInteger(value) && value >= 0 && value < THEME_COUNT ? value : null;
+function cleanOne(value) {
+  if (typeof value !== "string") return null;
+  const v = value.trim();
+  return v.length > 0 && v.length <= MAX_LEN ? v : null;
 }
 
 export default async (req) => {
@@ -62,13 +58,10 @@ export default async (req) => {
     }
 
     const payload = {
-      used: cleanIndexes(body.used, THEME_COUNT),
-      history: cleanIndexes(body.history, MAX_HISTORY),
-      filter:
-        typeof body.filter === "string" && body.filter.length <= MAX_FILTER_LEN
-          ? body.filter
-          : "すべて",
-      current: cleanIndex(body.current),
+      themes: cleanList(body.themes),
+      drawn: cleanList(body.drawn),
+      current: cleanOne(body.current),
+      exclude: typeof body.exclude === "boolean" ? body.exclude : true,
       updatedAt: Number.isFinite(body.updatedAt) ? body.updatedAt : Date.now()
     };
 
