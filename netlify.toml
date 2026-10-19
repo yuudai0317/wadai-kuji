@@ -1,15 +1,5 @@
-# 静的サイト（index.html 1枚）。ビルドは不要で、リポジトリ直下をそのまま公開する。
+# GitHub と連携すると、このファイルの設定でそのまま公開できます。
+# ビルド工程はありません（index.html をそのまま配信します）。
 [build]
   publish = "."
   command = ""
-
-# SPAではないが、未知のパスはトップに寄せて404を避ける。
-[[redirects]]
-  from = "/*"
-  to = "/index.html"
-  status = 200
-
-[[headers]]
-  for = "/index.html"
-  [headers.values]
-    Cache-Control = "public, max-age=0, must-revalidate"
