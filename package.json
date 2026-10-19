@@ -1,0 +1,10 @@
+{
+  "name": "wadai-kuji",
+  "private": true,
+  "version": "1.0.0",
+  "description": "話題のくじ。Netlify Blobs で端末間の進行状況をそろえます。",
+  "type": "module",
+  "dependencies": {
+    "@netlify/blobs": "^8.1.0"
+  }
+}

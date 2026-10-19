@@ -3,3 +3,14 @@
 [build]
   publish = "."
   command = ""
+
+# 端末間で状態をそろえる同期API（/api/kuji）
+[functions]
+  directory = "netlify/functions"
+  node_bundler = "esbuild"
+
+# 同期APIはキャッシュさせない
+[[headers]]
+  for = "/api/*"
+  [headers.values]
+    Cache-Control = "no-store"

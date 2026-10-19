@@ -143,6 +143,47 @@ body::before{
 .meta{font-size:11px;letter-spacing:.16em;color:var(--muted)}
 .meta em{font-style:normal;color:var(--gold-hi)}
 
+/* ---- 端末間の共有（同期APIが使える環境でだけ出す） ---- */
+.sync{
+  display:flex;flex-wrap:wrap;align-items:center;justify-content:center;
+  gap:9px 14px;margin-top:4px;
+}
+.sync[hidden]{display:none}
+.sync-switch{
+  display:inline-flex;align-items:center;gap:9px;cursor:pointer;
+  font-family:var(--gothic);font-size:11.5px;letter-spacing:.06em;color:var(--muted);
+  border:1px solid rgba(201,162,39,.28);border-radius:999px;
+  padding:6px 15px 6px 9px;transition:.25s ease;
+}
+.sync-switch:hover{color:var(--cream);border-color:rgba(201,162,39,.6)}
+.sync-switch:has(input:checked){color:var(--cream);border-color:rgba(201,162,39,.6)}
+.sync-switch:has(input:disabled){opacity:.45;cursor:not-allowed}
+.sync-switch input{
+  appearance:none;margin:0;flex:0 0 auto;
+  width:32px;height:18px;border-radius:999px;position:relative;cursor:pointer;
+  background:rgba(0,0,0,.34);border:1px solid rgba(201,162,39,.3);
+  transition:.25s ease;
+}
+.sync-switch input::after{
+  content:"";position:absolute;top:2px;left:2px;width:12px;height:12px;border-radius:50%;
+  background:var(--muted);transition:.25s ease;
+}
+.sync-switch input:checked{background:rgba(201,162,39,.26);border-color:var(--gold)}
+.sync-switch input:checked::after{transform:translateX(14px);background:var(--gold-hi)}
+.sync-switch input:disabled{cursor:not-allowed}
+.sync-now{
+  font-family:var(--gothic);font-size:11.5px;letter-spacing:.06em;
+  color:var(--muted);background:transparent;
+  border:1px solid rgba(201,162,39,.28);border-radius:999px;
+  padding:7px 14px;cursor:pointer;transition:.25s ease;
+}
+.sync-now:hover{color:var(--cream);border-color:rgba(201,162,39,.6)}
+.sync-note{
+  flex-basis:100%;text-align:center;margin:0;min-height:1.5em;
+  font-size:10.5px;letter-spacing:.12em;line-height:1.5;color:var(--muted);
+}
+.sync-note.warn{color:#E2A078}
+
 /* ---- history ---- */
 .history{margin-top:clamp(40px,8vw,64px)}
 .history h2{
@@ -195,6 +236,15 @@ body::before{
   <div class="action">
     <button class="draw" id="draw" type="button">くじを引く</button>
     <p class="meta" id="meta"></p>
+
+    <div class="sync" id="sync" hidden>
+      <label class="sync-switch">
+        <input type="checkbox" id="syncOn">
+        <span>この端末の変更を共有する</span>
+      </label>
+      <button type="button" class="sync-now" id="syncNow">今すぐ確認</button>
+      <p class="sync-note" id="syncNote" role="status" aria-live="polite"></p>
+    </div>
   </div>
 
   <section class="history">
@@ -784,6 +834,7 @@ const ALL_THEMES = THEME_DATA.flatMap(g =>
   let history = [];
   let drawing = false;
   let hasDrawn = false;
+  let current = null;        // いま箱に出ている話題（共有して他の端末にも映す）
 
   const categories = ['すべて', ...THEME_DATA.map(g => g.category)];
   categories.forEach(name => {
@@ -797,6 +848,7 @@ const ALL_THEMES = THEME_DATA.flatMap(g =>
       [...filtersEl.children].forEach(c =>
         c.setAttribute('aria-pressed', String(c.textContent === filter)));
       updateMeta();
+      schedulePush();
     });
     filtersEl.appendChild(b);
   });
@@ -878,6 +930,7 @@ const ALL_THEMES = THEME_DATA.flatMap(g =>
 
   function finish(i){
     used.add(i);
+    current = i;
     history.unshift(i);
     if (history.length > 10) history.pop();
     paint(i);
@@ -888,10 +941,180 @@ const ALL_THEMES = THEME_DATA.flatMap(g =>
     drawBtn.textContent = 'もう一度引く';
     renderHistory();
     updateMeta();
+    schedulePush();
+    catchUp();          // 抽選中に届いていた変更を取り直す
   }
 
   drawBtn.addEventListener('click', draw);
   updateMeta();
+
+  /* ============================================================
+     端末間の共有（/api/kuji ＝ Netlify Functions + Blobs）
+
+     ・受け取りは常時。同じURLを開いた端末の変更が届きます。
+     ・送り出すのは「この端末の変更を共有する」がオンの端末だけで、
+       オフの端末は受け取るだけです。
+     ・同期APIが無い環境（GitHub Pages、ファイルを直接開いた場合など）では
+       この欄ごと出しません。
+     ============================================================ */
+  const API  = '/api/kuji';
+  const FLAG = 'wadai-kuji:share';
+  const POLL = 5000;
+
+  const syncEl     = document.getElementById('sync');
+  const syncOnEl   = document.getElementById('syncOn');
+  const syncNowEl  = document.getElementById('syncNow');
+  const syncNoteEl = document.getElementById('syncNote');
+
+  let apiOK     = false;
+  let shareOn   = false;
+  let stamp     = 0;       // 取り込み済み／送信済みの更新時刻
+  let pushTimer = null;
+  let missed    = false;   // 抽選中に届いて見送った変更があるか
+
+  const validIndex = i =>
+    Number.isInteger(i) && i >= 0 && i < ALL_THEMES.length;
+
+  function hhmm(){
+    const d = new Date();
+    return ('0'+d.getHours()).slice(-2) + ':' + ('0'+d.getMinutes()).slice(-2);
+  }
+  function say(msg, warn){
+    syncNoteEl.textContent = msg;
+    syncNoteEl.classList.toggle('warn', !!warn);
+  }
+
+  function snapshot(){
+    return {
+      used: [...used],
+      history: history.slice(),
+      filter: filter,
+      current: current,
+      updatedAt: Date.now()
+    };
+  }
+
+  async function pushState(){
+    if (!apiOK || !shareOn) return;
+    const body = snapshot();
+    stamp = body.updatedAt;              // 自分の書き込みを読み返さないため
+    try{
+      const r = await fetch(API, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+      if (!r.ok) throw new Error(r.status);
+      say('共有しました（' + hhmm() + '）');
+    }catch(e){
+      say('共有できませんでした。通信を確認してください', true);
+    }
+  }
+
+  function schedulePush(){
+    if (!apiOK || !shareOn) return;
+    clearTimeout(pushTimer);
+    pushTimer = setTimeout(pushState, 600);
+  }
+
+  // 受け取った状態を画面に反映する。抽選中は見送り、抽選後に取り直す。
+  function applyState(data, announce){
+    if (!data) return false;
+    const at = Number(data.updatedAt) || 0;
+    if (at <= stamp) return false;
+    if (drawing){ missed = true; return false; }
+    stamp = at;
+
+    used.clear();
+    (Array.isArray(data.used) ? data.used : [])
+      .forEach(i => { if (validIndex(i)) used.add(i); });
+
+    history = (Array.isArray(data.history) ? data.history : [])
+      .filter(validIndex).slice(0, 10);
+
+    if (typeof data.filter === 'string' && categories.includes(data.filter)){
+      filter = data.filter;
+      [...filtersEl.children].forEach(c =>
+        c.setAttribute('aria-pressed', String(c.textContent === filter)));
+    }
+
+    current = validIndex(data.current) ? data.current : null;
+    if (current !== null){
+      paint(current);
+      hasDrawn = true;
+      drawBtn.textContent = 'もう一度引く';
+      frame.classList.remove('is-drawing');
+      void frame.offsetWidth;
+      frame.classList.add('is-settled');
+    }
+
+    renderHistory();
+    updateMeta();
+    if (announce) say('他の端末の変更を受け取りました（' + hhmm() + '）');
+    return true;
+  }
+
+  async function pull(announce){
+    if (!apiOK) return false;
+    try{
+      const r = await fetch(API, { cache: 'no-store' });
+      if (!r.ok) throw new Error(r.status);
+      const data = await r.json();
+      if (!data){
+        if (announce) say('共有されている内容はまだありません');
+        return false;
+      }
+      const changed = applyState(data, announce);
+      if (announce && !changed) say('すでに最新です（' + hhmm() + '）');
+      return changed;
+    }catch(e){
+      if (announce) say('確認できませんでした。通信を確認してください', true);
+      return false;
+    }
+  }
+
+  // 抽選中に見送った変更を取り直す（送り出す端末は、この後の送信が最新になる）
+  function catchUp(){
+    if (!missed) return;
+    missed = false;
+    if (shareOn) return;
+    pull(true);
+  }
+
+  syncOnEl.addEventListener('change', ()=>{
+    shareOn = syncOnEl.checked;
+    try{ localStorage.setItem(FLAG, shareOn ? '1' : '0'); }catch(e){}
+    if (shareOn){
+      say('この端末の変更を共有します');
+      pushState();
+    }else{
+      say('共有をオフにしました。この端末は受け取るだけです');
+    }
+  });
+  syncNowEl.addEventListener('click', ()=>pull(true));
+
+  (async function initSync(){
+    let data = null;
+    try{
+      const r = await fetch(API, { cache: 'no-store' });
+      if (!r.ok) return;                 // 同期APIが無い環境では欄ごと出さない
+      data = await r.json();
+    }catch(e){ return; }
+
+    apiOK = true;
+    syncEl.hidden = false;
+    try{ shareOn = localStorage.getItem(FLAG) === '1'; }catch(e){}
+    syncOnEl.checked = shareOn;
+    say(shareOn
+      ? 'この端末の変更を共有しています'
+      : '同じURLを開いた端末の変更を受け取ります');
+
+    applyState(data, false);             // 起動時はまず受け取る
+
+    setInterval(()=>{ if (!document.hidden) pull(false); }, POLL);
+    document.addEventListener('visibilitychange', ()=>{ if (!document.hidden) pull(false); });
+    window.addEventListener('focus', ()=>pull(false));
+  })();
 })();
 </script>
 </body>
