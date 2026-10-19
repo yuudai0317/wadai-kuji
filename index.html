@@ -296,6 +296,30 @@ textarea.field{min-height:0;resize:vertical;}
   flex:0 0 1.9em;color:var(--brass);font-variant-numeric:tabular-nums;font-size:11.5px;
 }
 
+/* 操作列に置く共有スイッチ（共有が使える環境でのみ表示する） */
+.syncGroup{display:flex;align-items:center;gap:clamp(6px,.8vw,12px);}
+.syncGroup[hidden]{display:none;}
+.btn.switch{
+  display:inline-flex;align-items:center;gap:.7em;
+  padding:.5em 1.2em .5em .8em;cursor:pointer;
+}
+.btn.switch input{
+  appearance:none;margin:0;flex:0 0 auto;
+  width:34px;height:19px;border-radius:999px;
+  background:#0A2220;border:1px solid var(--ink-3);
+  position:relative;cursor:pointer;transition:background .2s,border-color .2s;
+}
+.btn.switch input::after{
+  content:"";position:absolute;top:2px;left:2px;
+  width:13px;height:13px;border-radius:50%;
+  background:var(--muted);transition:transform .2s,background .2s;
+}
+.btn.switch input:checked{background:#3D3213;border-color:var(--brass);}
+.btn.switch input:checked::after{transform:translateX(15px);background:var(--brass);}
+.btn.switch:has(input:checked){border-color:var(--brass);}
+.btn.switch:has(input:disabled){opacity:.45;cursor:not-allowed;}
+.btn.switch input:disabled{cursor:not-allowed;}
+
 /* くじ引き画面の操作結果を知らせる短い通知 */
 .toast{
   /* 操作列は幅が狭いと折り返して高くなるため、その実高さの上に出す */
@@ -365,7 +389,13 @@ textarea.field{min-height:0;resize:vertical;}
   <div class="bottom">
     <button class="btn primary" id="btnStart">スタート</button>
     <button class="btn" id="btnSettings">テーマを編集</button>
-    <button class="btn" id="btnShare">この端末の変更を共有する</button>
+    <div class="syncGroup" id="syncGroup" hidden>
+      <label class="btn switch">
+        <input type="checkbox" id="optSync">
+        <span>この端末の変更を共有する</span>
+      </label>
+      <button class="btn ghost" id="btnSyncNow">今すぐ確認</button>
+    </div>
     <button class="btn ghost" id="btnReset">履歴と除外をリセット</button>
     <button class="btn ghost" id="btnFull">全画面表示</button>
   </div>
@@ -488,7 +518,8 @@ const el = {
   bottom:document.querySelector(".bottom"),
   optExclude:$("optExclude"), optSound:$("optSound"),
   optSave:$("optSave"), saveNote:$("saveNote"), saveStatus:$("saveStatus"),
-  shareBase:$("shareBase"), shareUrl:$("shareUrl"), shareStatus:$("shareStatus")
+  shareBase:$("shareBase"), shareUrl:$("shareUrl"), shareStatus:$("shareStatus"),
+  syncGroup:$("syncGroup"), optSync:$("optSync")
 };
 
 /* ============================================================
@@ -596,8 +627,9 @@ function render(){
   }
 
   // 内容が変わったら保存を予約し、共有リンクも作り直す
-  if(typeof scheduleSave  === "function") scheduleSave();
-  if(typeof refreshShare === "function") refreshShare();
+  if(typeof scheduleSave     === "function") scheduleSave();
+  if(typeof refreshShare    === "function") refreshShare();
+  if(typeof scheduleCloudPush === "function") scheduleCloudPush();
 }
 
 function registerThemes(mode){
@@ -825,6 +857,9 @@ function decide(result){
   setTimeout(()=>beep(1175, 0.3, 0.09), 120);
 
   render();
+
+  // 抽選中に届いた他の端末の変更は見送っているので、ここで取り直す
+  if(typeof cloudCatchUp === "function") cloudCatchUp();
 }
 
 /* ============================================================
@@ -883,7 +918,6 @@ $("btnClearHist").addEventListener("click", ()=>{
 $("btnReset").addEventListener("click", ()=>{
   drawn = []; render(); resetStage();
 });
-$("btnShare").addEventListener("click", ()=>copyShare());
 $("btnFull").addEventListener("click", ()=>{
   try{
     if(document.fullscreenElement) document.exitFullscreen()?.catch?.(()=>{});
@@ -1010,9 +1044,9 @@ function applyStored(data){
   drawn = Array.isArray(data.drawn) ? data.drawn.slice() : [];
   if(typeof data.exclude === "boolean") el.optExclude.checked = data.exclude;
   stamp = data.updatedAt || Date.now();
-  applying = false;
 
   render();
+  applying = false;
   if(spinning) return;
   const keep = (typeof data.current === "string" && themes.indexOf(data.current) >= 0)
     ? data.current : null;
@@ -1138,9 +1172,9 @@ function applyShare(shared, announce){
   drawn   = [];
   current = null;
   if(typeof shared.exclude === "boolean") el.optExclude.checked = shared.exclude;
-  applying = false;
   try{ localStorage.setItem(SHARE_SIG, shared.sig); }catch(e){}
   render();
+  applying = false;
   resetStage();
   if(saveOn) writeStore();
   if(announce) saveSay("共有リンクのテーマを読み込みました（"+themes.length+"件）");
@@ -1250,8 +1284,181 @@ window.addEventListener("hashchange", ()=>{
   refreshShare();
 });
 
+/* ============================================================
+   9. 他の端末との共有（このアーティファクトの共有データ）
+
+   ・受け取りは常時。共有された内容は、リンクを開いた全員に届きます。
+   ・送り出すのは「この端末の変更を共有する」がオンの端末だけです。
+     オフの端末は受け取るだけで、その端末での編集や抽選は外に出ません。
+   ・claude.ai で開いたときだけ働きます。GitHub Pages などに置いた同じHTMLや、
+     サインインしていない閲覧者には共有データが無いので、
+     スイッチ自体を出さず、設定パネルの共有リンクを使ってもらいます。
+   ============================================================ */
+const SYNC_PATH = "kuji/state";
+const SYNC_FLAG = "kuji:syncOn";
+
+let cloudDoc      = null;    // 共有ドキュメント
+let cloudSub      = null;    // 購読の解除関数
+let syncOn        = false;   // この端末の変更を送り出すか
+let cloudStamp    = 0;       // 取り込み済み／送信済みの更新時刻
+let cloudTimer    = null;
+let cloudMissed   = false;   // 抽選中に届いて見送った変更があるか
+let cloudReadOnly = false;   // このリンクでは書き込めない
+let cloudSeen     = false;   // 最初の受信を済ませたか
+
+function cloudBody(){
+  return {
+    themes: themes,
+    drawn: drawn,
+    current: current,
+    exclude: el.optExclude.checked,
+    updatedAt: Date.now()
+  };
+}
+
+async function cloudPush(){
+  if(!cloudDoc || !syncOn || cloudReadOnly) return;
+  const body = cloudBody();
+  cloudStamp = body.updatedAt;        // 自分の書き込みの反射を無視するため
+  try{
+    await cloudDoc.set(body);
+  }catch(e){
+    const code = e && e.code;
+    if(code === "invalid_argument" || code === "revoked" || code === "not_granted"){
+      cloudReadOnly = true;
+      el.optSync.disabled = true;
+      setSync(false, true);
+      toast("このリンクでは受け取り専用です。この端末の変更は共有されません。", true);
+    }else{
+      toast("共有できませんでした。少し待ってからもう一度お試しください。", true);
+    }
+  }
+}
+
+function scheduleCloudPush(){
+  if(!syncOn || !cloudDoc || applying || cloudReadOnly) return;
+  clearTimeout(cloudTimer);
+  cloudTimer = setTimeout(cloudPush, 700);
+}
+
+// 受け取った内容を画面に反映する。抽選中は見送り、抽選後に取り直す。
+function applyCloud(body, announce){
+  if(!body) return false;
+  const at = Number(body.updatedAt) || 0;
+  if(at <= cloudStamp) return false;
+  if(spinning){ cloudMissed = true; return false; }
+  cloudStamp = at;
+
+  applying = true;
+  if(Array.isArray(body.themes)) themes = body.themes.slice();
+  drawn = Array.isArray(body.drawn) ? body.drawn.slice() : [];
+  if(typeof body.exclude === "boolean") el.optExclude.checked = body.exclude;
+  render();
+  applying = false;
+
+  const keep = (typeof body.current === "string" && themes.indexOf(body.current) >= 0)
+    ? body.current : null;
+  if(keep) showDecided(keep, false);
+  else     resetStage();
+
+  if(saveOn) writeStore();
+  if(announce) toast("他の端末の変更を受け取りました。");
+  return true;
+}
+
+// 抽選中に見送った変更を取り直す（送り出す端末は、この後の送信が最新になる）
+async function cloudCatchUp(){
+  if(!cloudDoc || !cloudMissed) return;
+  cloudMissed = false;
+  if(syncOn) return;
+  try{
+    const snap = await cloudDoc.get();
+    if(snap.exists) applyCloud(snap.data(), true);
+  }catch(e){ /* 次の通知で届く */ }
+}
+
+function setSync(on, quiet){
+  syncOn = !!on && !cloudReadOnly;
+  el.optSync.checked = syncOn;
+  try{ localStorage.setItem(SYNC_FLAG, syncOn ? "1" : "0"); }catch(e){}
+  if(quiet) return;
+  if(syncOn){
+    toast("この端末の変更を共有します。編集も抽選結果も、リンクを開いた全員に反映されます。");
+    cloudPush();
+  }else if(!cloudReadOnly){
+    toast("共有をオフにしました。この端末は受け取るだけになります。");
+  }
+}
+
+async function cloudSyncNow(){
+  if(!cloudDoc){ toast("この環境では共有を使えません。", true); return; }
+  try{
+    const snap = await cloudDoc.get();
+    if(!snap.exists){
+      if(syncOn){ await cloudPush(); toast("共有された内容がまだ無いので、この端末の内容で始めました。"); }
+      else toast("共有された内容はまだありません。");
+      return;
+    }
+    toast(applyCloud(snap.data(), false)
+      ? "他の端末の変更を受け取りました。"
+      : "すでに最新の状態です。");
+  }catch(e){
+    toast("確認できませんでした。通信状態を確認してください。", true);
+  }
+}
+
+async function initCloud(){
+  if(!(window.claude && typeof window.claude.use === "function")) return;
+
+  let db = null;
+  try{ db = await window.claude.use("db"); }catch(e){ db = null; }
+  if(!db) return;                       // claude.ai の外、またはサインアウト時
+
+  try{ cloudDoc = db.doc(SYNC_PATH); }catch(e){ return; }
+
+  // 書き込めるかを先に見ておく。わからない（null）ときは、試してから判断する。
+  try{
+    const user = await window.claude.use("user");
+    if(user && (await user.can("data.write")) === false) cloudReadOnly = true;
+  }catch(e){ /* 判断は書き込みの結果に任せる */ }
+
+  el.syncGroup.hidden = false;
+  if(cloudReadOnly){
+    el.optSync.disabled = true;
+    el.optSync.title = "このリンクでは受け取り専用です。";
+  }else{
+    let flag = null;
+    try{ flag = localStorage.getItem(SYNC_FLAG); }catch(e){}
+    if(flag === "1") setSync(true, true);   // 起動時は送らず、まず受け取る
+  }
+
+  cloudSub = cloudDoc.onSnapshot(snap=>{
+    if(!snap.exists){
+      // まだ誰も共有していない。送り出す端末なら、この端末の内容で始める。
+      if(syncOn && !cloudSeen) cloudPush();
+      cloudSeen = true;
+      return;
+    }
+    if(snap.metadata && snap.metadata.hasPendingWrites) return;   // 自分の書き込み
+    applyCloud(snap.data(), cloudSeen);      // 最初の1回は黙って反映する
+    cloudSeen = true;
+  }, err=>{
+    cloudSub = null;
+    if(err && err.code === "revoked"){
+      syncOn = false;
+      el.syncGroup.hidden = true;
+    }else{
+      toast("共有の接続が切れました。「今すぐ確認」で取り直せます。", true);
+    }
+  });
+}
+
+el.optSync.addEventListener("change", ()=>setSync(el.optSync.checked, false));
+$("btnSyncNow").addEventListener("click", ()=>cloudSyncNow());
+
 /* 起動 */
 initStore();
+initCloud();
 </script>
 </body>
 </html>
